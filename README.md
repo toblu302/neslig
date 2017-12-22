@@ -16,11 +16,11 @@ to run the emulator.
 * SDL2
 
 ### Controllers
-Start: Enter
-Select: Space
-A: z
-B: x
-D-pad: arrow keys
+* Start: Enter
+* Select: Space
+* A: z
+* B: x
+* D-pad: arrow keys
 
 ### What does it do
 You can play a handful of games on it (Super Mario Bros, Mario Bros, Balloon Fight, and Donkey Kong have been tested), assuming the game uses mapper 0 (NROM) and does not have 8x16 sprites. Check out [this list](http://tuxnes.sourceforge.net/nesmapper.txt) to find out which mapper a game uses.
