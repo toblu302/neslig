@@ -1,7 +1,11 @@
 #files being edited
 *~
+*.swp
 
 # make and build files
 *.lst
 *.o
 *.backup
+*.layout
+*.depend
+*.cbp
