@@ -25,7 +25,9 @@ struct memory_manager {
 
     uint16_t VRAM_address;
     uint8_t internal_buffer;
-} MMU;
+};
+
+extern memory_manager MMU;
 
 //initalize MMU
 void initMMU();

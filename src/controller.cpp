@@ -1,6 +1,8 @@
 #include "controller.h"
 #include "MMU.h"
 
+Controller NES_Controller;
+
 int initController(Controller *controller) {
     controller->pointer = 0;
     int i;

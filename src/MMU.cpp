@@ -4,6 +4,8 @@
 #include "controller.h"
 #include "ppu2C02.h"
 
+memory_manager MMU;
+
 void initMMU() {
     MMU.RAM = (uint8_t*) malloc(sizeof(uint8_t) * 0xFFFF );
     MMU.VRAM = (uint8_t*) malloc(sizeof(uint8_t) * 0xFFFF );

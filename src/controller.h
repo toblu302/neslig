@@ -8,8 +8,9 @@ struct Controller {
     uint8_t pointer;
     uint8_t button_status[8];
     uint8_t previous_write;
-} NES_Controller;
+};
 typedef struct Controller Controller;
+extern Controller NES_Controller;
 
 int initController(Controller *controller);
 

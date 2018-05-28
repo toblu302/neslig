@@ -4,6 +4,7 @@
 #include "ppu2C02.h"
 #include "cpu6502.h"
 
+CPU6502state CPU_state;
 
 int initCPU6502(CPU6502state *state) {
     state->PC = 0xC000;

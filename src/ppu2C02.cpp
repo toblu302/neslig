@@ -3,6 +3,8 @@
 #include "ppu2C02.h"
 #include "cpu6502.h"
 
+PPU2C02state PPU_state;
+
 int initPPU2C02(PPU2C02state *state) {
     state->scanline = 241;
     state->dot = 0;
@@ -13,7 +15,7 @@ int initPPU2C02(PPU2C02state *state) {
     return 1;
 }
 
-inline uint8_t PPUcycle(PPU2C02state *state, SDL_Surface *screenSurface) {
+uint8_t PPUcycle(PPU2C02state *state, SDL_Surface *screenSurface) {
 
     if( state->nmi_output && state->nmi_occurred ) {
         state->nmi_occurred = 0;
@@ -72,11 +74,11 @@ inline uint8_t PPUcycle(PPU2C02state *state, SDL_Surface *screenSurface) {
     return 0;
 }
 
-inline uint8_t rendering_enabled() {
+uint8_t rendering_enabled() {
     return MMU.RAM[0x2001] & ((1<<3)|(1<<4));
 }
 
-inline void handleVisibleScanline(PPU2C02state *state) {
+void handleVisibleScanline(PPU2C02state *state) {
 
     if( state->dot == 0 ) {
         loadScanlineSprites(state);
@@ -139,7 +141,7 @@ inline void handleVisibleScanline(PPU2C02state *state) {
 
 }
 
-inline void horinc() {
+void horinc() {
     if ((MMU.VRAM_address & 0x001F) == 0x001F) {
         MMU.VRAM_address &= ~0x001F;
         MMU.VRAM_address ^= 0x0400;
@@ -149,7 +151,7 @@ inline void horinc() {
     }
 }
 
-inline void verinc() {
+void verinc() {
     if ((MMU.VRAM_address & 0x7000) != 0x7000) {
         MMU.VRAM_address += 0x1000;
     }

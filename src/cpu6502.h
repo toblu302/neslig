@@ -97,13 +97,16 @@ struct CPU6502state {
     uint8_t X; // (8 bits)
     uint8_t Y; // (8 bits)
     uint8_t P; //status register (8 bits) NV_BDIZC
-} CPU_state;
+};
 typedef struct CPU6502state CPU6502state;
+
+extern CPU6502state CPU_state;
 
 //initalize the CPU
 int initCPU6502(CPU6502state *state);
 
 //fetches and executes an opcode
+int updateZN(CPU6502state *state, uint8_t variable);
 uint8_t fetchAndExecute(CPU6502state *state);
 
 //interrupts
@@ -125,5 +128,17 @@ uint16_t addressIndexedIndirect(CPU6502state* state);
 uint16_t addressIndirectIndexed(CPU6502state* state);
 
 //CPU instructions (implemented in cpu6502instructions.c)
+void ADC(CPU6502state* state, uint8_t argument);
+void SBC(CPU6502state* state, uint8_t argument);
+uint8_t LSR(CPU6502state* state, uint8_t argument);
+uint8_t ASL(CPU6502state* state, uint8_t argument);
+uint8_t ROR(CPU6502state* state, uint8_t argument);
+uint8_t ROL(CPU6502state* state, uint8_t argument);
+void DEC(CPU6502state* state, uint16_t argument);
+void INC(CPU6502state* state, uint16_t argument);
+void SLO(CPU6502state* state, uint16_t argument);
+void RLA(CPU6502state* state, uint16_t argument);
+void RRA(CPU6502state* state, uint16_t argument);
+void SRE(CPU6502state* state, uint16_t argument);
 
 #endif // CPU6502_H_INCLUDED

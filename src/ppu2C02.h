@@ -57,8 +57,9 @@ struct PPU2C02state {
 
     uint8_t num_sprites;
     PPUsprite sprites[8];
-} PPU_state;
+};
 typedef struct PPU2C02state PPU2C02state;
+extern PPU2C02state PPU_state;
 
 //initalize the PPU (ppu2C02.c)
 int initPPU2C02(PPU2C02state *state);

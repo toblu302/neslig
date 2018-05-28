@@ -7,7 +7,7 @@
 /******************
 * rendering
 ******************/
-inline void setPixelColor(SDL_Surface* screenSurface, int x, int y, uint32_t color) {
+ void setPixelColor(SDL_Surface* screenSurface, int x, int y, uint32_t color) {
     Uint32 *pixels = (Uint32 *)screenSurface->pixels;
     int dx = 0, dy=0;
     for(dx=0; dx<pixelWidth; ++dx) {
@@ -17,7 +17,7 @@ inline void setPixelColor(SDL_Surface* screenSurface, int x, int y, uint32_t col
     }
 }
 
-inline void renderPixel(SDL_Surface* screenSurface, PPU2C02state *state) {
+ void renderPixel(SDL_Surface* screenSurface, PPU2C02state *state) {
     //get bg color index
     uint8_t shift = 15-(MMU.x & 7);
     uint8_t bit_0 = (state->bitmap_shift_0 & (1 << shift)) >> shift;
@@ -65,7 +65,7 @@ inline void renderPixel(SDL_Surface* screenSurface, PPU2C02state *state) {
 * loading
 ******************/
 
-inline void loadScanlineSprites(PPU2C02state *state) {
+ void loadScanlineSprites(PPU2C02state *state) {
     state->num_sprites = 0;
     int i=0;
     for(i=0; i<8; ++i) {
@@ -134,7 +134,7 @@ inline void loadScanlineSprites(PPU2C02state *state) {
 
 }
 
-inline int getActiveSpriteIndex(PPU2C02state *state) {
+ int getActiveSpriteIndex(PPU2C02state *state) {
     uint8_t i;
     for(i=0; i<state->num_sprites; ++i) {
         if( state->sprites[i].x == 0 && state->sprites[i].shifts_remaining > 0 ) {
@@ -149,7 +149,7 @@ inline int getActiveSpriteIndex(PPU2C02state *state) {
     return -1;
 }
 
-inline void updatePPUrenderingData(PPU2C02state *state) {
+ void updatePPUrenderingData(PPU2C02state *state) {
     state->bitmap_shift_0 <<= 1;
     state->bitmap_shift_1 <<= 1;
     state->bitmap_shift_0 &= ~1;
@@ -177,7 +177,7 @@ inline void updatePPUrenderingData(PPU2C02state *state) {
 * fetching values
 ******************/
 
-inline uint16_t getSpritePaletteBase(uint8_t attribute_value) {
+ uint16_t getSpritePaletteBase(uint8_t attribute_value) {
     switch(attribute_value) {
         case 0:
             return 0x3F10;
@@ -190,7 +190,7 @@ inline uint16_t getSpritePaletteBase(uint8_t attribute_value) {
     }
 }
 
-inline uint16_t getBackgroundPaletteBase(uint16_t attribute_value) {
+ uint16_t getBackgroundPaletteBase(uint16_t attribute_value) {
     switch(attribute_value) {
         case 0:
             return 0x3F00;
@@ -203,7 +203,7 @@ inline uint16_t getBackgroundPaletteBase(uint16_t attribute_value) {
     }
 }
 
-inline void fetchAttribute(PPU2C02state *state) {
+ void fetchAttribute(PPU2C02state *state) {
     uint16_t attribute_address = (0x23C0 | (MMU.VRAM_address & 0x0C00) | ((MMU.VRAM_address >> 4) & 0x38) | ((MMU.VRAM_address >> 2) & 0x07));
     uint8_t at = getAttributeTableValue(attribute_address, (MMU.VRAM_address & 0x001F)*8, ((MMU.VRAM_address & (0x001F << 5)) >> 5)*8);
     if(at & 1) {
@@ -220,7 +220,7 @@ inline void fetchAttribute(PPU2C02state *state) {
     }
 }
 
-inline uint8_t getAttributeTableValue(uint16_t attribute_address, uint8_t x, uint8_t y) {
+ uint8_t getAttributeTableValue(uint16_t attribute_address, uint8_t x, uint8_t y) {
     uint8_t attribute_value = readVRAM(attribute_address);
 
     uint8_t bottom = 1;
