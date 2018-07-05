@@ -140,5 +140,6 @@ void SLO(CPU6502state* state, uint16_t argument);
 void RLA(CPU6502state* state, uint16_t argument);
 void RRA(CPU6502state* state, uint16_t argument);
 void SRE(CPU6502state* state, uint16_t argument);
+uint8_t BXX(CPU6502state* state, uint16_t address, int flag, bool shouldBeSet);
 
 #endif // CPU6502_H_INCLUDED

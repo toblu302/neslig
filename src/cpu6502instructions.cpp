@@ -215,3 +215,16 @@ void SRE(CPU6502state* state, uint16_t address) {
     state->A ^= readRAM(address);
     updateZN(state, state->A);
 }
+
+uint8_t BXX(CPU6502state* state, uint16_t address, int flag, bool shouldBeSet) {
+    uint8_t clockCycles = 0;
+    bool isSet = ((state->P & (1<<flag)) != 0x00);
+    if( isSet == shouldBeSet ) {
+        clockCycles += 1;
+        if((address & 0xFF00) != (state->PC & 0xFF00)) {
+            clockCycles += 1;
+        }
+        state->PC = address;
+    }
+    return clockCycles;
+}

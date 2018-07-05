@@ -474,98 +474,49 @@ uint8_t fetchAndExecute(CPU6502state *state) {
         ***********************/
         //BNE Relative
         case 0xD0:{
-            if(!(state->P & (1<<Z))) {
-                clockCycles += 1;
-                if((address & 0xFF00) != (state->PC & 0xFF00)) {
-                    clockCycles += 1;
-                }
-                state->PC = address;
-            }
+            BXX(state, address, Z, false);
             sprintf(instruction, "BNE");
             break;}
 
         //BCS Relative
         case 0xB0:{
-            if(state->P & (1<<C)) {
-                clockCycles += 1;
-                if((address & 0xFF00) != (state->PC & 0xFF00)) {
-                    clockCycles += 1;
-                }
-                state->PC = address;
-            }
+            BXX(state, address, C, true);
             sprintf(instruction, "BCS");
             break;}
 
         //BEQ Relative
         case 0xF0:{
-
-            if(state->P & (1<<Z)) {
-                clockCycles += 1;
-                if((address & 0xFF00) != (state->PC & 0xFF00)) {
-                    clockCycles += 1;
-                }
-                state->PC = address;
-            }
+            BXX(state, address, Z, true);
             sprintf(instruction, "BEQ");
             break;}
 
         //BMI Relative
         case 0x30:{
-            if(state->P & (1<<N)) {
-                clockCycles += 1;
-                if((address & 0xFF00) != (state->PC & 0xFF00)) {
-                    clockCycles += 1;
-                }
-                state->PC = address;
-            }
+            BXX(state, address, N, true);
             sprintf(instruction, "BMI");
             break;}
 
         //BCC Relative
         case 0x90:{
-            if( !(state->P & (1<<C)) ) {
-                clockCycles += 1;
-                if((address & 0xFF00) != (state->PC & 0xFF00)) {
-                    clockCycles += 1;
-                }
-                state->PC = address;
-            }
+            BXX(state, address, C, false);
             sprintf(instruction, "BCC");
             break;}
 
         //BVS Relative
         case 0x70:{
-            if(state->P & (1<<V)) {
-                clockCycles += 1;
-                if((address & 0xFF00) != (state->PC & 0xFF00)) {
-                    clockCycles += 1;
-                }
-                state->PC = address;
-            }
+            BXX(state, address, V, true);
             sprintf(instruction, "BVS");
             break;}
 
         //BVC Relative
         case 0x50:{
-            if( !(state->P & (1<<V)) ) {
-                clockCycles += 1;
-                if((address & 0xFF00) != (state->PC & 0xFF00)) {
-                    clockCycles += 1;
-                }
-                state->PC = address;
-            }
+            BXX(state, address, V, false);
             sprintf(instruction, "BVC");
             break;}
 
         //BPL Relative
         case 0x10:{
-            if( !(state->P & (1<<N)) ) {
-                clockCycles += 1;
-                if((address & 0xFF00) != (state->PC & 0xFF00)) {
-                    clockCycles += 1;
-                }
-                state->PC = address;
-            }
+            BXX(state, address, N, false);
             sprintf(instruction, "BPL");
             break;}
 
