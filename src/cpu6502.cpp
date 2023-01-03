@@ -32,6 +32,8 @@ int updateZN(CPU6502state *state, uint8_t variable) {
     if(variable & (1 << 7)) {
         state->P |= (1<<N);
     }
+
+    return 0;
 }
 
 int updateCCompare(CPU6502state *state, int var1, int var2) {
@@ -39,6 +41,8 @@ int updateCCompare(CPU6502state *state, int var1, int var2) {
     if(var1>=var2) {
         state->P |= (1<<C);
     }
+
+    return 0;
 }
 
 //checks if running an opcode in a given state would cross a page boundary
@@ -331,7 +335,7 @@ uint8_t fetchAndExecute(CPU6502state *state) {
 
         //PLP Implied
         case 0x28:{
-            state->P = (popStack(state) & ~(1<<B) | (1<<UNDEFINED));
+            state->P = ((popStack(state) & ~(1<<B)) | (1<<UNDEFINED));
             sprintf(instruction, "PLP");
             break;}
 
@@ -525,8 +529,8 @@ uint8_t fetchAndExecute(CPU6502state *state) {
         ***********************/
         //JSR Absolute
         case 0x20:{
-            pushStack(state, (state->PC-1 & 0xFF00) >> 8);
-            pushStack(state, state->PC-1 & 0xFF);
+            pushStack(state, ((state->PC-1) & 0xFF00) >> 8);
+            pushStack(state, (state->PC-1) & 0xFF);
 
             state->PC = address;
             sprintf(instruction, "JSR");
@@ -556,7 +560,7 @@ uint8_t fetchAndExecute(CPU6502state *state) {
 
         //RTI Implied
         case 0x40:{
-            state->P = popStack(state) & ~(1<<B) | (1<<UNDEFINED);
+            state->P = (popStack(state) & ~(1<<B)) | (1<<UNDEFINED);
             int low = popStack(state);
             int high = popStack(state);
             state->PC = ((high << 8) | low);
@@ -565,8 +569,8 @@ uint8_t fetchAndExecute(CPU6502state *state) {
 
         //BRK Implied
         case 0x00:{
-            pushStack(state, (state->PC+1 & 0xFF00) >> 8);
-            pushStack(state, state->PC+1 & 0xFF);
+            pushStack(state, ((state->PC+1) & 0xFF00) >> 8);
+            pushStack(state, (state->PC+1) & 0xFF);
             pushStack(state, state->P | (1<<UNDEFINED) | (1<<B));
             uint8_t low = readRAM(0xFFFE);
             uint8_t high = readRAM(0xFFFF);

@@ -9,7 +9,7 @@
 ******************/
  void setPixelColor(SDL_Surface* screenSurface, int x, int y, uint32_t color) {
     Uint32 *pixels = (Uint32 *)screenSurface->pixels;
-    int dx = 0, dy=0;
+    uint32_t dx = 0, dy=0;
     for(dx=0; dx<pixelWidth; ++dx) {
         for(dy=0; dy<pixelHeight; ++dy) {
             pixels[ ( ((y*pixelHeight)+dy) * screenSurface->w ) + (x*pixelWidth)+dx ] = color;
@@ -87,8 +87,6 @@
             if( (MMU.RAM[0x2000] & (1 << 3)) ) {
                 pattern_base = 0x1000;
             }
-
-            uint16_t palette_base = getSpritePaletteBase(byte2 & 3);
 
             int row = state->scanline-y;
             uint8_t pattern_0 = MMU.VRAM[pattern_base + (pattern_index*16+row)];
@@ -188,6 +186,7 @@
         case 3:
             return 0x3F1C;
     }
+    return 0x3F10;
 }
 
  uint16_t getBackgroundPaletteBase(uint16_t attribute_value) {
@@ -201,6 +200,7 @@
         case 3:
             return 0x3F0C;
     }
+    return 0x3F00;
 }
 
  void fetchAttribute(PPU2C02state *state) {

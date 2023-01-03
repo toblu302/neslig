@@ -48,10 +48,10 @@ uint16_t addressIndirect(CPU6502state* state) {
     uint8_t high = readRAM(state->PC++);
     uint16_t target = (high << 8) | low;
 
-    uint8_t targetLow = readRAM( ((high << 8) | low) );
-    uint8_t targetHigh = readRAM( (((high << 8) | low) + 1) );
+    uint8_t targetLow = readRAM(target);
+    uint8_t targetHigh = readRAM(target+1);
     if( ((((high << 8) | low) + 1) & 0xFF) == 0) {
-        targetHigh = readRAM( (((high << 8) | low) + 1) - 0x100 );
+        targetHigh = readRAM( (target+1) - 0x100 );
     }
 
     return (targetHigh << 8) | targetLow;
@@ -105,6 +105,7 @@ uint16_t getAddress(CPU6502state *state, uint8_t opcode) {
         case ACC:
             return 0;
     }
+    return 0;
 }
 
 /******************

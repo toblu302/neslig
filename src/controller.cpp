@@ -10,6 +10,8 @@ int initController(Controller *controller) {
         controller->button_status[i] = 0;
     }
     controller->previous_write = 0;
+
+    return 0;
 }
 
 void handleInput(Controller *controller, SDL_Event *e) {
