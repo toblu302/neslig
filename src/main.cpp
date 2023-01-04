@@ -7,6 +7,7 @@
 #include "MMU.h"
 #include "cpu6502.h"
 #include "ppu2C02.h"
+#include "filereader.h"
 
 int main(int argc, char *argv[])
 {
@@ -14,66 +15,24 @@ int main(int argc, char *argv[])
         printf("Error: No .nes-file supplied\n");
         return 1;
     }
-    //open a handle to the file
-    FILE *fp;
-    fp = fopen(argv[1], "r");
 
-    if(!fp) {
-        printf("Error: Could not load the file.\n");
-        return 1;
-    }
+    Cartridge cartridge = read_file(argv[1]);
 
-    //find out the size of the file
-    fseek(fp, 0, SEEK_END);
-    int string_size = ftell(fp);
-    rewind(fp);
-
-    //read the entire file into a buffer
-    unsigned char *cartridgebuffer = (unsigned char*) malloc(sizeof(unsigned char) * (string_size + 1) );
-    int read_size = fread(cartridgebuffer, sizeof(unsigned char), string_size, fp);
-    cartridgebuffer[string_size] = '\0';
-
-    //if there was some reading error, abort
-    if(read_size != string_size) {
-        printf("Error: Something went wrong in reading the file.\n");
-        free(cartridgebuffer);
-        fclose(fp);
-        return 1;
-    }
-
-    fclose(fp);
-
-    //if the file is not an iNES-file, abort
-    if(cartridgebuffer[0] != 'N' || cartridgebuffer[1] != 'E' || cartridgebuffer[2] != 'S' || cartridgebuffer[3] != 0x1a) {
-        printf("Error: File is not an iNES-file.\n");
-    }
-
-    //********************
-    //program starts here
-    //********************
-    int numPRGROM = cartridgebuffer[4];
-    int numCHRROM = cartridgebuffer[5];
-    int controlByte1 = cartridgebuffer[6];
-    int controlByte2 = cartridgebuffer[7];
-    int numRAM = cartridgebuffer[8];
-
-    int trainer = (controlByte1 & (1 << 2));
-
-    int mapper = ( (controlByte2 & 0xF0) | ((controlByte1 & 0xF0) >> 4));
-
-    printf("PRGROM: %d  CHRROM: %d  numRAM: %d Trainer: %d  mapper: %d\n", numPRGROM, numCHRROM, numRAM, trainer, mapper);
-    assert(mapper == 0);
+    printf("PRGROM: %d  CHRROM: %d  mapper: %d\n", cartridge.prg_rom_banks.size(), cartridge.chr_rom_banks.size(), cartridge.mapper);
+    assert(cartridge.mapper == 0);
 
     initMMU();
 
     //Copy the ROM into the CPU's memory
-    memcpy(MMU.RAM+0x8000, cartridgebuffer+0x10, numPRGROM*0x4000);
-    if(numPRGROM == 1) {
-        memcpy(MMU.RAM+0xC000, cartridgebuffer+0x10, numPRGROM*0x4000);
+    std::copy(cartridge.prg_rom_banks[0].begin(), cartridge.prg_rom_banks[0].end(), MMU.RAM+0x8000);
+    if(cartridge.prg_rom_banks.size() == 2) {
+        std::copy(cartridge.prg_rom_banks[1].begin(), cartridge.prg_rom_banks[1].end(), MMU.RAM+0xC000);
+    } else {
+        std::copy(cartridge.prg_rom_banks[0].begin(), cartridge.prg_rom_banks[0].end(), MMU.RAM+0xC000);
     }
 
     //Copy the ROM into the PPU's memory
-    memcpy(MMU.VRAM, cartridgebuffer+0x10+0x4000*numPRGROM, 0x2000*numCHRROM);
+    std::copy(cartridge.chr_rom_banks[0].begin(), cartridge.chr_rom_banks[0].end(), MMU.VRAM);
 
     //initalize the CPU
     initCPU6502(&CPU_state);
@@ -132,6 +91,5 @@ int main(int argc, char *argv[])
 
     }
 
-    free(cartridgebuffer);
     return 0;
 }

@@ -74,7 +74,6 @@
     }
 
     for(i=0x00; i<0xFF; i+=4) {
-        assert( (MMU.RAM[0x2000] & (1 << 5)) == 0 ); //only allow 8x8 sprites
 
         uint8_t y = readSPRRAM(i+0)+1;
         uint8_t pattern_index = readSPRRAM(i+1);
