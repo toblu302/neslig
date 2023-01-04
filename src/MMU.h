@@ -12,25 +12,29 @@
 #define OAMDMA 0x4014
 
 #include <stdint.h>
+#include <array>
 
-struct memory_manager {
-    uint8_t *RAM;
-    uint8_t *VRAM;
-    uint8_t *OAM;
+class MemoryManager {
+    public:
+        MemoryManager() {
+            OAM.fill(0xff);
+        }
 
-    uint8_t w;
-    uint16_t t;
-    uint16_t x;
-    uint16_t y;
+        std::array<uint8_t, 0x10000> RAM;
+        std::array<uint8_t, 0x10000> VRAM;
+        std::array<uint8_t, 0x100> OAM;
 
-    uint16_t VRAM_address;
-    uint8_t internal_buffer;
+        uint8_t w = 0;
+        uint16_t t = 0;
+        uint16_t x = 0;
+        uint16_t y = 0;
+
+        uint16_t VRAM_address = 0;
+        uint8_t OAM_address = 0;
+        uint8_t internal_buffer = 0;
 };
 
-extern memory_manager MMU;
-
-//initalize MMU
-void initMMU();
+extern MemoryManager MMU;
 
 uint8_t writeRAM(uint16_t address, uint8_t value); //return the number of clock cycles it takes
 uint8_t readRAM(uint16_t address);

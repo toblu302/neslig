@@ -4,21 +4,7 @@
 #include "controller.h"
 #include "ppu2C02.h"
 
-memory_manager MMU;
-
-void initMMU() {
-    MMU.RAM = (uint8_t*) malloc(sizeof(uint8_t) * 0xFFFF );
-    MMU.VRAM = (uint8_t*) malloc(sizeof(uint8_t) * 0xFFFF );
-    MMU.OAM = (uint8_t*) malloc(sizeof(uint8_t) * 0xFF );
-
-    memset( MMU.OAM, 0xFF, 0xFF*sizeof(uint8_t) );
-
-    MMU.internal_buffer = 0;
-    MMU.VRAM_address = 0;
-
-    MMU.w = 0;
-    MMU.t = 0;
-}
+MemoryManager MMU;
 
 uint8_t writeRAM(uint16_t address, uint8_t value) {
 
@@ -45,8 +31,7 @@ uint8_t writeRAM(uint16_t address, uint8_t value) {
 
     //OAMDATA
     else if(address == 0x2004) {
-        MMU.OAM[0x2003] = value;
-        MMU.OAM[0x2003] += 1;
+        MMU.OAM[MMU.OAM_address++] = value;
     }
 
     //PPUSCROLL
@@ -135,7 +120,7 @@ uint8_t readRAM(uint16_t address) {
 
     //OAMDATA
     if(address == 0x2004) {
-        return MMU.OAM[0x2003];
+        return MMU.OAM[MMU.OAM_address];
     }
 
     //PPUDATA

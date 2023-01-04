@@ -21,18 +21,16 @@ int main(int argc, char *argv[])
     printf("PRGROM: %d  CHRROM: %d  mapper: %d\n", cartridge.prg_rom_banks.size(), cartridge.chr_rom_banks.size(), cartridge.mapper);
     assert(cartridge.mapper == 0);
 
-    initMMU();
-
     //Copy the ROM into the CPU's memory
-    std::copy(cartridge.prg_rom_banks[0].begin(), cartridge.prg_rom_banks[0].end(), MMU.RAM+0x8000);
+    std::copy(cartridge.prg_rom_banks[0].begin(), cartridge.prg_rom_banks[0].end(), MMU.RAM.begin()+0x8000);
     if(cartridge.prg_rom_banks.size() == 2) {
-        std::copy(cartridge.prg_rom_banks[1].begin(), cartridge.prg_rom_banks[1].end(), MMU.RAM+0xC000);
+        std::copy(cartridge.prg_rom_banks[1].begin(), cartridge.prg_rom_banks[1].end(), MMU.RAM.begin()+0xC000);
     } else {
-        std::copy(cartridge.prg_rom_banks[0].begin(), cartridge.prg_rom_banks[0].end(), MMU.RAM+0xC000);
+        std::copy(cartridge.prg_rom_banks[0].begin(), cartridge.prg_rom_banks[0].end(), MMU.RAM.begin()+0xC000);
     }
 
     //Copy the ROM into the PPU's memory
-    std::copy(cartridge.chr_rom_banks[0].begin(), cartridge.chr_rom_banks[0].end(), MMU.VRAM);
+    std::copy(cartridge.chr_rom_banks[0].begin(), cartridge.chr_rom_banks[0].end(), MMU.VRAM.begin());
 
     //initalize the CPU
     initCPU6502(&CPU_state);
