@@ -1,12 +1,15 @@
 #include <stdlib.h>
 #include <stdio.h>
-#include "MMU.h"
-#include "ppu2C02.h"
+
+#include "controller.h"
 #include "cpu6502.h"
+#include "ppu2C02.h"
 
 CPU6502state CPU_state;
 
-int initCPU6502(CPU6502state *state) {
+int initCPU6502(CPU6502state *state, Cartridge cartridge) {
+    state->cartridge = cartridge;
+
     state->PC = 0xC000;
     state->SP = 0xFD;
     state->X = 0;
@@ -14,9 +17,11 @@ int initCPU6502(CPU6502state *state) {
     state->P = 0x24;
     state->A = 0;
 
-    uint8_t high = readRAM(0xFFFD);
-    uint8_t low = readRAM(0xFFFC);
+    uint8_t high = state->readRAM(0xFFFD);
+    uint8_t low = state->readRAM(0xFFFC);
     state->PC = (high << 8) | low;
+
+    //printf("pc: %X %x %x\n", state->PC, high, low);
 
     return 1;
 }
@@ -51,23 +56,23 @@ uint8_t isPageBreaking(CPU6502state *state, uint8_t opcode) {
     enum addressingMode mode = addressModeLookup[opcode];
     switch(mode) {
         case ABSX:
-            low = readRAM(state->PC);
-            high = readRAM(state->PC+1);
+            low = state->readRAM(state->PC);
+            high = state->readRAM(state->PC+1);
             if ( ((((high << 8) | low) + state->X) & 0xFF00) != (((high << 8) | low) & 0xFF00) ) {
                 return 1;
             }
             return 0;
         case ABSY:
-            low = readRAM(state->PC);
-            high = readRAM(state->PC+1);
+            low = state->readRAM(state->PC);
+            high = state->readRAM(state->PC+1);
             if ( ((((high << 8) | low) + state->Y) & 0xFF00) != (((high << 8) | low) & 0xFF00) ) {
                 return 1;
             }
             return 0;
         case INDINX:
-            address = readRAM(state->PC);
-            low = readRAM(address++);
-            high = readRAM( address & 0xFF );
+            address = state->readRAM(state->PC);
+            low = state->readRAM(address++);
+            high = state->readRAM( address & 0xFF );
 
             if( ((((high << 8) | low) + state->Y) &0xFF00) != (((high << 8) | low) & 0xFF00) ) {
                 return 1;
@@ -83,7 +88,7 @@ uint8_t isPageBreaking(CPU6502state *state, uint8_t opcode) {
 * stack operations
 ******************/
 void pushStack(CPU6502state* state, int value) {
-    writeRAM( 0x100 + state->SP, value );
+    state->writeRAM( 0x100 + state->SP, value );
     state->SP -= 1;
     state->SP &= 0xFF;
 }
@@ -91,15 +96,15 @@ void pushStack(CPU6502state* state, int value) {
 uint8_t popStack(CPU6502state* state) {
     state->SP += 1;
     state->SP &= 0xFF;
-    return readRAM( (0x100 + state->SP)&0x1FF );
+    return state->readRAM( (0x100 + state->SP)&0x1FF );
 }
 
 /******************
 * interrupts
 ******************/
 void NMI(CPU6502state *state) {
-    uint8_t low = readRAM(0xFFFA);
-    uint8_t high = readRAM(0xFFFB);
+    uint8_t low = state->readRAM(0xFFFA);
+    uint8_t high = state->readRAM(0xFFFB);
     uint16_t address = (high << 8) | low;
 
     pushStack(state, state->PC >> 8);
@@ -127,7 +132,7 @@ uint8_t fetchAndExecute(CPU6502state *state) {
     char instruction[4] = "   ";
     char after[27] = "                          ";
 
-    uint8_t opcode = readRAM( state->PC++ );
+    uint8_t opcode = state->readRAM( state->PC++ );
     uint8_t clockCycles = clockCycleLookup[opcode];
     if(isPageBreaking(state, opcode)) {
         uint8_t add = pageBreakingLookup[opcode];
@@ -142,28 +147,28 @@ uint8_t fetchAndExecute(CPU6502state *state) {
         //LDY
         case 0xA0: case 0xA4: case 0xB4: case 0xAC:
         case 0xBC:{
-            state->Y = readRAM(address);
+            state->Y = state->readRAM(address);
             updateZN(state, state->Y);
             sprintf(instruction, "LDY");
             break;}
 
         //STY
         case 0x84: case 0x8C: case 0x94:{
-            clockCycles += writeRAM(address, state->Y);
+            clockCycles += state->writeRAM(address, state->Y);
             sprintf(instruction, "STY");
             break;}
 
         //LDX
         case 0xA2: case 0xA6: case 0xB6: case 0xAE:
         case 0xBE:{
-            state->X = readRAM(address);
+            state->X = state->readRAM(address);
             updateZN(state, state->X);
             sprintf(instruction, "LDX");
             break;}
 
         //STX
         case 0x86: case 0x8E: case 0x96:{
-            clockCycles += writeRAM(address, state->X);
+            clockCycles += state->writeRAM(address, state->X);
             sprintf(instruction, "STX");
             break;}
 
@@ -197,7 +202,7 @@ uint8_t fetchAndExecute(CPU6502state *state) {
         //LDA Immediate
         case 0xA9: case 0xA5: case 0xB5: case 0xAD: case 0xBD: case 0xB9: case 0xA1:
         case 0xB1:{
-            state->A = readRAM(address);
+            state->A = state->readRAM(address);
             updateZN(state, state->A);
             sprintf(instruction, "LDA");
             break;}
@@ -219,7 +224,7 @@ uint8_t fetchAndExecute(CPU6502state *state) {
         //BIT
         case 0x24:
         case 0x2C:{
-            int inMemory = readRAM(address);
+            int inMemory = state->readRAM(address);
             updateZN(state, inMemory&state->A);
             state->P &= ~(1<<V);
             if(inMemory & (1 << 6)) state->P |= (1<<V);
@@ -262,7 +267,7 @@ uint8_t fetchAndExecute(CPU6502state *state) {
         //AND
         case 0x29: case 0x25: case 0x35: case 0x2D:
         case 0x3D: case 0x39: case 0x21: case 0x31:{
-            state->A &= readRAM(address);
+            state->A &= state->readRAM(address);
             updateZN(state, state->A);
             sprintf(instruction, "AND");
             break;}
@@ -270,7 +275,7 @@ uint8_t fetchAndExecute(CPU6502state *state) {
         //CMP
         case 0xC9: case 0xC5: case 0xD5: case 0xCD:
         case 0xDD: case 0xD9: case 0xC1: case 0xD1:{
-            int comparator = readRAM(address);
+            int comparator = state->readRAM(address);
             updateCCompare(state, state->A,comparator);
             updateZN(state, state->A-comparator);
             sprintf(instruction, "CMP");
@@ -279,7 +284,7 @@ uint8_t fetchAndExecute(CPU6502state *state) {
         //ORA
         case 0x09: case 0x05: case 0x15: case 0x0D: case 0x1D:
         case 0x19: case 0x01: case 0x11:{
-            state->A |= readRAM(address);
+            state->A |= state->readRAM(address);
             updateZN(state, state->A);
             sprintf(instruction, "ORA");
             break;}
@@ -287,7 +292,7 @@ uint8_t fetchAndExecute(CPU6502state *state) {
         //EOR
         case 0x49: case 0x45: case 0x55: case 0x4D: case 0x5D:
         case 0x59: case 0x41: case 0x51:{
-            state->A ^= readRAM(address);
+            state->A ^= state->readRAM(address);
             updateZN(state, state->A);
             sprintf(instruction, "EOR");
             break;}
@@ -295,21 +300,21 @@ uint8_t fetchAndExecute(CPU6502state *state) {
         //ADC
         case 0x69: case 0x65: case 0x75: case 0x6D: case 0x7D:
         case 0x79: case 0x61: case 0x71:{
-            ADC(state, readRAM(address) );
+            ADC(state, state->readRAM(address) );
             sprintf(instruction, "ADC");
             break;}
 
         //SBC Immediate
         case 0xEB: case 0xE9: case 0xE5: case 0xF5: case 0xED:
         case 0xFD: case 0xF9: case 0xE1: case 0xF1:{
-            SBC(state, readRAM(address));
+            SBC(state, state->readRAM(address));
             sprintf(instruction, "SBC");
             break;}
 
         //CPY
         case 0xC0: case 0xC4:
         case 0xCC:{
-            int comparator = readRAM(address);
+            int comparator = state->readRAM(address);
             updateCCompare(state, state->Y,comparator);
             updateZN(state, state->Y-comparator);
             sprintf(instruction, "CPY");
@@ -318,7 +323,7 @@ uint8_t fetchAndExecute(CPU6502state *state) {
         //CPX
         case 0xE0: case 0xE4:
         case 0xEC:{
-            int comparator = readRAM(address);
+            int comparator = state->readRAM(address);
             updateCCompare(state, state->X,comparator);
             updateZN(state, state->X-comparator);
             sprintf(instruction, "CPX");
@@ -406,7 +411,7 @@ uint8_t fetchAndExecute(CPU6502state *state) {
         //ASL
         case 0x1E: case 0x0E: case 0x16:
         case 0x06:{
-            clockCycles += writeRAM(address, ASL(state, readRAM(address)));
+            clockCycles += state->writeRAM(address, ASL(state, state->readRAM(address)));
             sprintf(instruction, "ASL");
             break;}
 
@@ -419,7 +424,7 @@ uint8_t fetchAndExecute(CPU6502state *state) {
         //LSR
         case 0x46: case 0x56: case 0x4E:
         case 0x5E:{
-            clockCycles += writeRAM(address, LSR(state, readRAM(address)));
+            clockCycles += state->writeRAM(address, LSR(state, state->readRAM(address)));
             sprintf(instruction, "LSR");
             break;}
 
@@ -432,7 +437,7 @@ uint8_t fetchAndExecute(CPU6502state *state) {
         //ROR
         case 0x66: case 0x76: case 0x6E:
         case 0x7E:{
-            clockCycles += writeRAM(address, ROR(state, readRAM(address)));
+            clockCycles += state->writeRAM(address, ROR(state, state->readRAM(address)));
             sprintf(instruction, "ROR");
             break;}
 
@@ -445,7 +450,7 @@ uint8_t fetchAndExecute(CPU6502state *state) {
         //ROL
         case 0x26: case 0x2E: case 0x3E:
         case 0x36:{
-            clockCycles += writeRAM(address, ROL(state, readRAM(address)));
+            clockCycles += state->writeRAM(address, ROL(state, state->readRAM(address)));
             sprintf(instruction, "ROL");
             break;}
 
@@ -455,7 +460,7 @@ uint8_t fetchAndExecute(CPU6502state *state) {
         //STA
         case 0x85: case 0x95: case 0x8D: case 0x9D:
         case 0x99: case 0x81: case 0x91:{
-            clockCycles += writeRAM(address, state->A);
+            clockCycles += state->writeRAM(address, state->A);
             sprintf(instruction, "STA");
             break;}
 
@@ -572,8 +577,8 @@ uint8_t fetchAndExecute(CPU6502state *state) {
             pushStack(state, ((state->PC+1) & 0xFF00) >> 8);
             pushStack(state, (state->PC+1) & 0xFF);
             pushStack(state, state->P | (1<<UNDEFINED) | (1<<B));
-            uint8_t low = readRAM(0xFFFE);
-            uint8_t high = readRAM(0xFFFF);
+            uint8_t low = state->readRAM(0xFFFE);
+            uint8_t high = state->readRAM(0xFFFF);
             state->PC = (high << 8) | low;
             state->P |= (1<<B);
             sprintf(instruction, "BRK");
@@ -586,7 +591,7 @@ uint8_t fetchAndExecute(CPU6502state *state) {
         //LAX (LDA -> TAX)
         case 0xA7: case 0xB7: case 0xAF: case 0xBF:
         case 0xA3: case 0xB3:{
-            state->A = readRAM(address);
+            state->A = state->readRAM(address);
             state->X = state->A;
             updateZN(state, state->X);
             sprintf(instruction, "LAX");
@@ -594,7 +599,7 @@ uint8_t fetchAndExecute(CPU6502state *state) {
 
         //SAX
         case 0x87: case 0x97: case 0x8F: case 0x83:{
-            clockCycles += writeRAM(address, state->A & state->X);
+            clockCycles += state->writeRAM(address, state->A & state->X);
             sprintf(instruction, "SAX");
             break;}
 
@@ -602,7 +607,7 @@ uint8_t fetchAndExecute(CPU6502state *state) {
         case 0xC7: case 0xD7: case 0xCF: case 0xDF:
         case 0xDB: case 0xC3: case 0xD3:{
             DEC(state, address);
-            uint8_t comparator = readRAM(address);
+            uint8_t comparator = state->readRAM(address);
             updateCCompare(state, state->A,comparator);
             updateZN(state, state->A-comparator);
             sprintf(instruction, "DCP");
@@ -612,7 +617,7 @@ uint8_t fetchAndExecute(CPU6502state *state) {
         case 0xE7: case 0xF7: case 0xEF: case 0xFF:
         case 0xFB: case 0xE3: case 0xF3:{
             INC(state, address);
-            SBC(state, readRAM(address));
+            SBC(state, state->readRAM(address));
             sprintf(instruction, "ISB");
             break;}
 
@@ -658,6 +663,66 @@ uint8_t fetchAndExecute(CPU6502state *state) {
 
     //print debug info
     //sprintf(c1, "%02X", opcode);
-    //printf("%04X  %s %s %s  %s %s  A:%02X X:%02X Y:%02X P:%02X SP:%02X ", oldPC, c1, c2, c3, instruction, after, oldA, oldX, oldY, oldP, oldSP);
+    //printf("%04X  %s %s %s  %s %s  A:%02X X:%02X Y:%02X P:%02X SP:%02X \n", oldPC, c1, c2, c3, instruction, after, oldA, oldX, oldY, oldP, oldSP);
     return clockCycles;
+}
+
+uint8_t CPU6502state::writeRAM(uint16_t address, uint8_t value) {
+    while(address >= 0x2008 && address < 0x4000) {
+        address -= 8;
+    }
+
+    while(address >= 0x0800 && address < 0x2000) {
+        address -= 0x0800;
+    }
+
+    // Deal with ppu
+    if ((address >= 0x2000 && address <= 0x2007) || address == 0x4014) {
+        PPU_state.writeRegisters(address, value);
+    }
+
+    // Controller 1
+    else if(address == 0x4016) {
+        writeController(&NES_Controller, value);
+    }
+
+    // Regular write
+    else if (address < 0x800) {
+        this->ram[address] = value;
+    }
+
+    return 0;
+}
+
+uint8_t CPU6502state::readRAM(uint16_t address) {
+    while(address >= 0x2008 && address < 0x4000) {
+        address -= 8; //handle mirroring
+    }
+    while(address >= 0x0800 && address < 0x2000) {
+        address -= 0x0800; //handle mirroring
+    }
+
+    uint8_t retVal = 0; 
+
+    // PPU registers
+    if((address >= 0x2000 && address <= 0x2007) || address == 0x4014) {
+        return PPU_state.readRegisters(address);
+    }
+
+    // Controller 1
+    else if(address == 0x4016) {
+        retVal = getNextButton(&NES_Controller);
+    }
+
+    // Regular read
+    else if (address < 0x800) {
+        retVal = this->ram[address];
+    }
+
+    // Cartridge
+    else if (address >= 0x4020) {
+        retVal = cartridge.readMemory(address);
+    }
+
+    return retVal;
 }

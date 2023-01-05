@@ -9,68 +9,68 @@ uint16_t addressImmediate(CPU6502state* state) {
 }
 
 uint16_t addressZeroPage(CPU6502state* state) {
-    return readRAM(state->PC++);
+    return state->readRAM(state->PC++);
 }
 
 uint16_t addressZeroPageX(CPU6502state* state) {
-    return (readRAM(state->PC++) + state->X) & 0xFF;
+    return (state->readRAM(state->PC++) + state->X) & 0xFF;
 }
 
 uint16_t addressZeroPageY(CPU6502state* state) {
-    return (readRAM( state->PC++ )+ state->Y) & 0xFF;
+    return (state->readRAM( state->PC++ )+ state->Y) & 0xFF;
 }
 
 //returns an "8 bit" offset
 int8_t addressRelative(CPU6502state* state) {
-    return readRAM( state->PC++ );
+    return state->readRAM( state->PC++ );
 }
 
 uint16_t addressAbsolute(CPU6502state* state) {
-    uint8_t low = readRAM(state->PC++);
-    uint8_t high = readRAM(state->PC++);
+    uint8_t low = state->readRAM(state->PC++);
+    uint8_t high = state->readRAM(state->PC++);
     return (high << 8) | low;
 }
 
 uint16_t addressAbsoluteX(CPU6502state* state) {
-    uint8_t low = readRAM(state->PC++);
-    uint8_t high = readRAM(state->PC++);
+    uint8_t low = state->readRAM(state->PC++);
+    uint8_t high = state->readRAM(state->PC++);
     return ( ((high << 8) | low) + state->X);
 }
 
 uint16_t addressAbsoluteY(CPU6502state* state) {
-    uint8_t low = readRAM(state->PC++);
-    uint8_t high = readRAM(state->PC++);
+    uint8_t low = state->readRAM(state->PC++);
+    uint8_t high = state->readRAM(state->PC++);
     return ( ((high << 8) | low) + state->Y);
 }
 
 uint16_t addressIndirect(CPU6502state* state) {
-    uint8_t low = readRAM(state->PC++);
-    uint8_t high = readRAM(state->PC++);
+    uint8_t low = state->readRAM(state->PC++);
+    uint8_t high = state->readRAM(state->PC++);
     uint16_t target = (high << 8) | low;
 
-    uint8_t targetLow = readRAM(target);
-    uint8_t targetHigh = readRAM(target+1);
+    uint8_t targetLow = state->readRAM(target);
+    uint8_t targetHigh = state->readRAM(target+1);
     if( ((((high << 8) | low) + 1) & 0xFF) == 0) {
-        targetHigh = readRAM( (target+1) - 0x100 );
+        targetHigh = state->readRAM( (target+1) - 0x100 );
     }
 
     return (targetHigh << 8) | targetLow;
 }
 
 uint16_t addressIndexedIndirect(CPU6502state* state) {
-    int address = readRAM(state->PC++);
+    int address = state->readRAM(state->PC++);
 
-    int low = readRAM((address+state->X)&0xFF);
-    int high = readRAM((address+state->X+1)&0xFF);
+    int low = state->readRAM((address+state->X)&0xFF);
+    int high = state->readRAM((address+state->X+1)&0xFF);
 
     return (high << 8) | low;
 }
 
 uint16_t addressIndirectIndexed(CPU6502state* state) {
-    uint32_t address = readRAM(state->PC++);
+    uint32_t address = state->readRAM(state->PC++);
 
-    uint32_t low = readRAM(address++);
-    uint32_t high = readRAM( address & 0xFF );
+    uint32_t low = state->readRAM(address++);
+    uint32_t high = state->readRAM( address & 0xFF );
     return (((high << 8) | low) + state->Y);
 }
 
@@ -184,36 +184,36 @@ uint8_t ROL(CPU6502state* state, uint8_t value) {
 }
 
 void DEC(CPU6502state* state, uint16_t address) {
-    writeRAM(address, readRAM(address)-1);
-    updateZN(state, readRAM(address));
+    state->writeRAM(address, state->readRAM(address)-1);
+    updateZN(state, state->readRAM(address));
 }
 
 void INC(CPU6502state* state, uint16_t address) {
-    writeRAM(address, readRAM(address)+1);
-    updateZN(state, readRAM(address));
+    state->writeRAM(address, state->readRAM(address)+1);
+    updateZN(state, state->readRAM(address));
 }
 
 void SLO(CPU6502state* state, uint16_t address) {
-    writeRAM(address, ASL(state, readRAM(address)));
-    state->A |= readRAM(address);
+    state->writeRAM(address, ASL(state, state->readRAM(address)));
+    state->A |= state->readRAM(address);
     updateZN(state, state->A);
 }
 
 void RLA(CPU6502state* state, uint16_t address) {
-    writeRAM(address, ROL(state, readRAM(address)));
-    state->A &= readRAM(address);
+    state->writeRAM(address, ROL(state, state->readRAM(address)));
+    state->A &= state->readRAM(address);
     updateZN(state, state->A);
 }
 
 void RRA(CPU6502state* state, uint16_t address) {
-    writeRAM(address, ROR(state, readRAM(address)));
-    ADC(state, readRAM(address));
+    state->writeRAM(address, ROR(state, state->readRAM(address)));
+    ADC(state, state->readRAM(address));
 }
 
 void SRE(CPU6502state* state, uint16_t address) {
-    writeRAM(address, LSR(state, readRAM(address)));
+    state->writeRAM(address, LSR(state, state->readRAM(address)));
 
-    state->A ^= readRAM(address);
+    state->A ^= state->readRAM(address);
     updateZN(state, state->A);
 }
 

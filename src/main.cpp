@@ -4,7 +4,6 @@
 #include <assert.h>
 
 #include "controller.h"
-#include "MMU.h"
 #include "cpu6502.h"
 #include "ppu2C02.h"
 #include "filereader.h"
@@ -19,24 +18,16 @@ int main(int argc, char *argv[])
     Cartridge cartridge = read_file(argv[1]);
 
     printf("PRGROM: %d  CHRROM: %d  mapper: %d\n", cartridge.prg_rom_banks.size(), cartridge.chr_rom_banks.size(), cartridge.mapper);
-    assert(cartridge.mapper == 0);
-
-    //Copy the ROM into the CPU's memory
-    std::copy(cartridge.prg_rom_banks[0].begin(), cartridge.prg_rom_banks[0].end(), MMU.RAM.begin()+0x8000);
-    if(cartridge.prg_rom_banks.size() == 2) {
-        std::copy(cartridge.prg_rom_banks[1].begin(), cartridge.prg_rom_banks[1].end(), MMU.RAM.begin()+0xC000);
-    } else {
-        std::copy(cartridge.prg_rom_banks[0].begin(), cartridge.prg_rom_banks[0].end(), MMU.RAM.begin()+0xC000);
-    }
-
-    //Copy the ROM into the PPU's memory
-    std::copy(cartridge.chr_rom_banks[0].begin(), cartridge.chr_rom_banks[0].end(), MMU.VRAM.begin());
+    //assert(cartridge.mapper == 0);
 
     //initalize the CPU
-    initCPU6502(&CPU_state);
+    initCPU6502(&CPU_state, cartridge);
 
     //initalize the PPU
     initPPU2C02(&PPU_state);
+
+    //Copy the ROM into the PPU's memory
+    std::copy(cartridge.chr_rom_banks[0].begin(), cartridge.chr_rom_banks[0].end(), (&PPU_state)->vram.begin());
 
     //initalize the Controller
     initController(&NES_Controller);

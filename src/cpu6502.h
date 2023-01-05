@@ -1,7 +1,11 @@
 #ifndef CPU6502_H_INCLUDED
 #define CPU6502_H_INCLUDED
 
+#include <array>
+
 #include <stdint.h>
+
+#include "filereader.h"
 
 #define N 7
 #define V 6
@@ -89,21 +93,26 @@ static const int pageBreakingLookup[256] =
     0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 1, 1, 0, 0 //F0 -> FF
  };
 
-//struct to store the state of the processor
-struct CPU6502state {
-    uint16_t PC; //program counter (16 bits)
-    uint16_t SP; //stack pointer (16 bits)
-    uint8_t A; //accumulator register (8 bits)
-    uint8_t X; // (8 bits)
-    uint8_t Y; // (8 bits)
-    uint8_t P; //status register (8 bits) NV_BDIZC
-};
-typedef struct CPU6502state CPU6502state;
+// class to store the state of the processor
+class CPU6502state {
+    public:
+        std::array<uint8_t, 0x800> ram;
+        uint16_t PC; //program counter (16 bits)
+        uint16_t SP; //stack pointer (16 bits)
+        uint8_t A; //accumulator register (8 bits)
+        uint8_t X; // (8 bits)
+        uint8_t Y; // (8 bits)
+        uint8_t P; //status register (8 bits) NV_BDIZC
 
+        uint8_t readRAM(uint16_t address);
+        uint8_t writeRAM(uint16_t address, uint8_t value);
+
+        Cartridge cartridge;
+};
 extern CPU6502state CPU_state;
 
 //initalize the CPU
-int initCPU6502(CPU6502state *state);
+int initCPU6502(CPU6502state *state, Cartridge cartridge);
 
 //fetches and executes an opcode
 int updateZN(CPU6502state *state, uint8_t variable);

@@ -1,6 +1,5 @@
 #include <assert.h>
 
-#include "MMU.h"
 #include "ppu2C02.h"
 
 
@@ -19,7 +18,7 @@
 
  void renderPixel(SDL_Surface* screenSurface, PPU2C02state *state) {
     //get bg color index
-    uint8_t shift = 15-(MMU.x & 7);
+    uint8_t shift = 15-(PPU_state.x & 7);
     uint8_t bit_0 = (state->bitmap_shift_0 & (1 << shift)) >> shift;
     uint8_t bit_1 = (state->bitmap_shift_1 & (1 << shift)) >> shift;
     uint8_t bg_color_index = (bit_1 << 1) | bit_0;
@@ -38,19 +37,19 @@
 
     //draw the pixel on the screen, depending on color and priority
     if( bg_color_index == 0 && sprite_color_index == 0 ) {
-        setPixelColor(screenSurface, state->dot, state->scanline, ppu_colors[MMU.VRAM[0x3F00]]);
+        setPixelColor(screenSurface, state->dot, state->scanline, ppu_colors[state->vram[0x3F00]]);
     }
     else if( (sprite_color_index != 0 && bg_color_index == 0) ||
              (sprite_color_index != 0 && bg_color_index != 0 && (state->sprites[active_sprite_index].byte2 & (1<<5)) == 0) ) {
         assert( active_sprite_index != -1 );
         uint16_t palette_base = getSpritePaletteBase(state->sprites[active_sprite_index].attribute);
-        uint8_t color_value = readVRAM(palette_base + sprite_color_index);
+        uint8_t color_value = PPU_state.readVRAM(palette_base + sprite_color_index);
         uint32_t color = ppu_colors[color_value];
         setPixelColor(screenSurface, state->dot, state->scanline, color);
     }
     else {
         uint16_t palette_base = getBackgroundPaletteBase(bg_at_index);
-        uint8_t color_value = readVRAM(palette_base + bg_color_index);
+        uint8_t color_value = PPU_state.readVRAM(palette_base + bg_color_index);
         uint32_t color = ppu_colors[color_value];
         setPixelColor(screenSurface, state->dot, state->scanline, color);
     }
@@ -75,26 +74,26 @@
 
     for(i=0x00; i<0xFF; i+=4) {
 
-        uint8_t y = readSPRRAM(i+0)+1;
-        uint8_t pattern_index = readSPRRAM(i+1);
-        uint8_t byte2 = readSPRRAM(i+2);
-        uint8_t x = readSPRRAM(i+3);
+        uint8_t y = state->readSPRRAM(i+0)+1;
+        uint8_t pattern_index = state->readSPRRAM(i+1);
+        uint8_t byte2 = state->readSPRRAM(i+2);
+        uint8_t x = state->readSPRRAM(i+3);
 
         if( y <= state->scanline && y+8 > state->scanline ) {
 
             uint16_t pattern_base = 0x0000;
-            if( (MMU.RAM[0x2000] & (1 << 3)) ) {
+            if( (PPU_state.ppuctrl & (1 << 3)) ) {
                 pattern_base = 0x1000;
             }
 
             int row = state->scanline-y;
-            uint8_t pattern_0 = MMU.VRAM[pattern_base + (pattern_index*16+row)];
-            uint8_t pattern_1 = MMU.VRAM[pattern_base + (pattern_index*16+row+8)];
+            uint8_t pattern_0 = state->vram[pattern_base + (pattern_index*16+row)];
+            uint8_t pattern_1 = state->vram[pattern_base + (pattern_index*16+row+8)];
 
             //flip y
             if( byte2 & (1 << 7) ) {
-                pattern_0 = MMU.VRAM[pattern_base + (pattern_index*16+(7-row))];
-                pattern_1 = MMU.VRAM[pattern_base + (pattern_index*16+(7-row)+8)];
+                pattern_0 = state->vram[pattern_base + (pattern_index*16+(7-row))];
+                pattern_1 = state->vram[pattern_base + (pattern_index*16+(7-row)+8)];
             }
 
             //flip x, reverse the bits in the patterns
@@ -203,8 +202,8 @@
 }
 
  void fetchAttribute(PPU2C02state *state) {
-    uint16_t attribute_address = (0x23C0 | (MMU.VRAM_address & 0x0C00) | ((MMU.VRAM_address >> 4) & 0x38) | ((MMU.VRAM_address >> 2) & 0x07));
-    uint8_t at = getAttributeTableValue(attribute_address, (MMU.VRAM_address & 0x001F)*8, ((MMU.VRAM_address & (0x001F << 5)) >> 5)*8);
+    uint16_t attribute_address = (0x23C0 | (state->VRAM_address & 0x0C00) | ((state->VRAM_address >> 4) & 0x38) | ((state->VRAM_address >> 2) & 0x07));
+    uint8_t at = getAttributeTableValue(attribute_address, (state->VRAM_address & 0x001F)*8, ((state->VRAM_address & (0x001F << 5)) >> 5)*8);
     if(at & 1) {
         state->AT_shift_0_latch = 0xFF;
     }
@@ -220,7 +219,7 @@
 }
 
  uint8_t getAttributeTableValue(uint16_t attribute_address, uint8_t x, uint8_t y) {
-    uint8_t attribute_value = readVRAM(attribute_address);
+    uint8_t attribute_value = PPU_state.readVRAM(attribute_address);
 
     uint8_t bottom = 1;
     uint8_t right = 1;
