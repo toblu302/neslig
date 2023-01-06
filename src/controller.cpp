@@ -1,5 +1,4 @@
 #include "controller.h"
-#include "MMU.h"
 
 Controller NES_Controller;
 

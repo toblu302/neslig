@@ -1,5 +1,4 @@
 #include "cpu6502.h"
-#include "MMU.h"
 
 /******************
 * Addressing modes
