@@ -16,18 +16,18 @@ int main(int argc, char *argv[])
         return 1;
     }
 
-    Cartridge cartridge = read_file(argv[1]);
+    std::shared_ptr<Cartridge> cartridge = std::make_shared<Cartridge>(read_file(argv[1]));
 
-    printf("PRGROM: %d  CHRROM: %d  mapper: %d\n", cartridge.prg_rom_banks.size(), cartridge.chr_rom_banks.size(), cartridge.mapper);
+    printf("PRGROM: %d  CHRROM: %d  mapper: %d\n", cartridge->prg_rom_banks.size(), cartridge->chr_rom_banks.size(), cartridge->mapper);
     //assert(cartridge.mapper == 0);
 
     std::shared_ptr<PPU2C02state> ppu = std::make_shared<PPU2C02state>();
-
-    //initalize the CPU
-    initCPU6502(&CPU_state, cartridge, ppu);
+    std::cout << cartridge.get() << std::endl;
+    CPU6502state cpu(cartridge, ppu);
+    ppu->cpu = &cpu;
 
     //Copy the ROM into the PPU's memory
-    std::copy(cartridge.chr_rom_banks[0].begin(), cartridge.chr_rom_banks[0].end(), ppu->vram.begin());
+    std::copy(cartridge->chr_rom_banks[0].begin(), cartridge->chr_rom_banks[0].end(), ppu->vram.begin());
 
     //initalize the Controller
     initController(&NES_Controller);
@@ -62,7 +62,7 @@ int main(int argc, char *argv[])
         //emulate CPU and PPU
         uint8_t frame_finished = 0;
         if( paused == 0 ) {
-            uint8_t cycles = fetchAndExecute(&CPU_state);
+            uint8_t cycles = cpu.fetchAndExecute();
 
             uint8_t loop = cycles*3;
             while( loop != 0 )

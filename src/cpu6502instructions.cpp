@@ -3,102 +3,102 @@
 /******************
 * Addressing modes
 ******************/
-uint16_t addressImmediate(CPU6502state* state) {
-    return state->PC++;
+uint16_t CPU6502state::addressImmediate() {
+    return PC++;
 }
 
-uint16_t addressZeroPage(CPU6502state* state) {
-    return state->readRAM(state->PC++);
+uint16_t CPU6502state::addressZeroPage() {
+    return readRAM(PC++);
 }
 
-uint16_t addressZeroPageX(CPU6502state* state) {
-    return (state->readRAM(state->PC++) + state->X) & 0xFF;
+uint16_t CPU6502state::addressZeroPageX() {
+    return (readRAM(PC++) + X) & 0xFF;
 }
 
-uint16_t addressZeroPageY(CPU6502state* state) {
-    return (state->readRAM( state->PC++ )+ state->Y) & 0xFF;
+uint16_t CPU6502state::addressZeroPageY() {
+    return (readRAM( PC++ )+ Y) & 0xFF;
 }
 
 //returns an "8 bit" offset
-int8_t addressRelative(CPU6502state* state) {
-    return state->readRAM( state->PC++ );
+int8_t CPU6502state::addressRelative() {
+    return readRAM( PC++ );
 }
 
-uint16_t addressAbsolute(CPU6502state* state) {
-    uint8_t low = state->readRAM(state->PC++);
-    uint8_t high = state->readRAM(state->PC++);
+uint16_t CPU6502state::addressAbsolute() {
+    uint8_t low = readRAM(PC++);
+    uint8_t high = readRAM(PC++);
     return (high << 8) | low;
 }
 
-uint16_t addressAbsoluteX(CPU6502state* state) {
-    uint8_t low = state->readRAM(state->PC++);
-    uint8_t high = state->readRAM(state->PC++);
-    return ( ((high << 8) | low) + state->X);
+uint16_t CPU6502state::addressAbsoluteX() {
+    uint8_t low = readRAM(PC++);
+    uint8_t high = readRAM(PC++);
+    return ( ((high << 8) | low) + X);
 }
 
-uint16_t addressAbsoluteY(CPU6502state* state) {
-    uint8_t low = state->readRAM(state->PC++);
-    uint8_t high = state->readRAM(state->PC++);
-    return ( ((high << 8) | low) + state->Y);
+uint16_t CPU6502state::addressAbsoluteY() {
+    uint8_t low = readRAM(PC++);
+    uint8_t high = readRAM(PC++);
+    return ( ((high << 8) | low) + Y);
 }
 
-uint16_t addressIndirect(CPU6502state* state) {
-    uint8_t low = state->readRAM(state->PC++);
-    uint8_t high = state->readRAM(state->PC++);
+uint16_t CPU6502state::addressIndirect() {
+    uint8_t low = readRAM(PC++);
+    uint8_t high = readRAM(PC++);
     uint16_t target = (high << 8) | low;
 
-    uint8_t targetLow = state->readRAM(target);
-    uint8_t targetHigh = state->readRAM(target+1);
+    uint8_t targetLow = readRAM(target);
+    uint8_t targetHigh = readRAM(target+1);
     if( ((((high << 8) | low) + 1) & 0xFF) == 0) {
-        targetHigh = state->readRAM( (target+1) - 0x100 );
+        targetHigh = readRAM( (target+1) - 0x100 );
     }
 
     return (targetHigh << 8) | targetLow;
 }
 
-uint16_t addressIndexedIndirect(CPU6502state* state) {
-    int address = state->readRAM(state->PC++);
+uint16_t CPU6502state::addressIndexedIndirect() {
+    int address = readRAM(PC++);
 
-    int low = state->readRAM((address+state->X)&0xFF);
-    int high = state->readRAM((address+state->X+1)&0xFF);
+    int low = readRAM((address+X)&0xFF);
+    int high = readRAM((address+X+1)&0xFF);
 
     return (high << 8) | low;
 }
 
-uint16_t addressIndirectIndexed(CPU6502state* state) {
-    uint32_t address = state->readRAM(state->PC++);
+uint16_t CPU6502state::addressIndirectIndexed() {
+    uint32_t address = readRAM(PC++);
 
-    uint32_t low = state->readRAM(address++);
-    uint32_t high = state->readRAM( address & 0xFF );
-    return (((high << 8) | low) + state->Y);
+    uint32_t low = readRAM(address++);
+    uint32_t high = readRAM( address & 0xFF );
+    return (((high << 8) | low) + Y);
 }
 
 
-uint16_t getAddress(CPU6502state *state, uint8_t opcode) {
+uint16_t CPU6502state::getAddress(uint8_t opcode) {
     enum addressingMode mode = addressModeLookup[opcode];
     switch(mode) {
         case IMM:
-            return addressImmediate(state);
+            return addressImmediate();
         case ZER:
-            return addressZeroPage(state);
+            return addressZeroPage();
         case ZERX:
-            return addressZeroPageX(state);
+            return addressZeroPageX();
         case ZERY:
-            return addressZeroPageY(state);
+            return addressZeroPageY();
         case REL:
-            return state->PC + addressRelative(state) + 1;
+            return PC + addressRelative() + 1;
         case ABS:
-            return addressAbsolute(state);
+            return addressAbsolute();
         case ABSX:
-            return addressAbsoluteX(state);
+            return addressAbsoluteX();
         case ABSY:
-            return addressAbsoluteY(state);
+            return addressAbsoluteY();
         case IND:
-            return addressIndirect(state);
+            return addressIndirect();
         case INXIND:
-            return addressIndexedIndirect(state);
+            return addressIndexedIndirect();
         case INDINX:
-            return addressIndirectIndexed(state);
+            return addressIndirectIndexed();
         case NONE:
         case IMP:
         case ACC:
@@ -110,121 +110,121 @@ uint16_t getAddress(CPU6502state *state, uint8_t opcode) {
 /******************
 * Instructions
 ******************/
-void ADC(CPU6502state* state, uint8_t argument) {
-    uint16_t result = state->A + argument + (state->P&(1<<C)>>C);
-    state->P &= ~(1<<C);
+void CPU6502state::ADC(uint8_t argument) {
+    uint16_t result = A + argument + (P&(1<<C)>>C);
+    P &= ~(1<<C);
     if(result & 0xFF00) {
-        state->P |= (1<<C);
+        P |= (1<<C);
     }
-    state->P &= ~(1<<V);
-    if (~(state->A ^ argument) & (state->A ^ result) & 0x80){
-        state->P |= (1<<V);
+    P &= ~(1<<V);
+    if (~(A ^ argument) & (A ^ result) & 0x80){
+        P |= (1<<V);
     }
-    state->A = result & 0xFF;
-    updateZN(state, state->A);
+    A = result & 0xFF;
+    updateZN(A);
 }
 
-void SBC(CPU6502state* state, uint8_t argument) {
-    ADC(state, ~argument);
+void CPU6502state::SBC(uint8_t argument) {
+    ADC(~argument);
 }
 
-uint8_t LSR(CPU6502state* state, uint8_t value) {
+uint8_t CPU6502state::LSR(uint8_t value) {
     uint8_t returnValue = value;
-    state->P &= ~(1<<C);
+    P &= ~(1<<C);
     if(value & 0x1) {
-        state->P |= (1<<C);
+        P |= (1<<C);
     }
     returnValue = (returnValue >> 1);
     returnValue &= ~(1<<7);
-    updateZN(state, returnValue);
+    updateZN(returnValue);
     return returnValue;
 }
 
-uint8_t ASL(CPU6502state* state, uint8_t value) {
+uint8_t CPU6502state::ASL(uint8_t value) {
     uint8_t returnValue = value;
-    state->P &= ~(1<<C);
+    P &= ~(1<<C);
     if(value & 0x80) {
-        state->P |= (1<<C);
+        P |= (1<<C);
     }
     returnValue = (returnValue << 1);
     returnValue &= ~1;
-    updateZN(state, returnValue);
+    updateZN(returnValue);
     return returnValue;
 }
 
-uint8_t ROR(CPU6502state* state, uint8_t value) {
+uint8_t CPU6502state::ROR(uint8_t value) {
     uint8_t returnValue = value;
     returnValue = (returnValue >> 1);
 
-    if(state->P & (1<<C)) {
+    if(P & (1<<C)) {
         returnValue |= (1<<7);
     }
-    state->P &= ~(1<<C);
+    P &= ~(1<<C);
     if(value & 0x1) {
-        state->P |= (1<<C);
+        P |= (1<<C);
     }
-    updateZN(state, returnValue);
+    updateZN(returnValue);
     return returnValue;
 }
 
-uint8_t ROL(CPU6502state* state, uint8_t value) {
+uint8_t CPU6502state::ROL(uint8_t value) {
     uint8_t returnValue = value;
     returnValue = (returnValue << 1);
 
-    if(state->P & (1<<C)) {
+    if(P & (1<<C)) {
         returnValue |= 1;
     }
-    state->P &= ~(1<<C);
+    P &= ~(1<<C);
     if(value & 0x80) {
-        state->P |= (1<<C);
+        P |= (1<<C);
     }
-    updateZN(state, returnValue);
+    updateZN(returnValue);
     return returnValue;
 }
 
-void DEC(CPU6502state* state, uint16_t address) {
-    state->writeRAM(address, state->readRAM(address)-1);
-    updateZN(state, state->readRAM(address));
+void CPU6502state::DEC(uint16_t address) {
+    writeRAM(address, readRAM(address)-1);
+    updateZN(readRAM(address));
 }
 
-void INC(CPU6502state* state, uint16_t address) {
-    state->writeRAM(address, state->readRAM(address)+1);
-    updateZN(state, state->readRAM(address));
+void CPU6502state::INC(uint16_t address) {
+    writeRAM(address, readRAM(address)+1);
+    updateZN(readRAM(address));
 }
 
-void SLO(CPU6502state* state, uint16_t address) {
-    state->writeRAM(address, ASL(state, state->readRAM(address)));
-    state->A |= state->readRAM(address);
-    updateZN(state, state->A);
+void CPU6502state::SLO(uint16_t address) {
+    writeRAM(address, ASL(readRAM(address)));
+    A |= readRAM(address);
+    updateZN(A);
 }
 
-void RLA(CPU6502state* state, uint16_t address) {
-    state->writeRAM(address, ROL(state, state->readRAM(address)));
-    state->A &= state->readRAM(address);
-    updateZN(state, state->A);
+void CPU6502state::RLA(uint16_t address) {
+    writeRAM(address, ROL(readRAM(address)));
+    A &= readRAM(address);
+    updateZN(A);
 }
 
-void RRA(CPU6502state* state, uint16_t address) {
-    state->writeRAM(address, ROR(state, state->readRAM(address)));
-    ADC(state, state->readRAM(address));
+void CPU6502state::RRA(uint16_t address) {
+    writeRAM(address, ROR(readRAM(address)));
+    ADC(readRAM(address));
 }
 
-void SRE(CPU6502state* state, uint16_t address) {
-    state->writeRAM(address, LSR(state, state->readRAM(address)));
+void CPU6502state::SRE(uint16_t address) {
+    writeRAM(address, LSR(readRAM(address)));
 
-    state->A ^= state->readRAM(address);
-    updateZN(state, state->A);
+    A ^= readRAM(address);
+    updateZN(A);
 }
 
-uint8_t BXX(CPU6502state* state, uint16_t address, int flag, bool shouldBeSet) {
+uint8_t CPU6502state::BXX(uint16_t address, int flag, bool shouldBeSet) {
     uint8_t clockCycles = 0;
-    bool isSet = ((state->P & (1<<flag)) != 0x00);
+    bool isSet = ((P & (1<<flag)) != 0x00);
     if( isSet == shouldBeSet ) {
         clockCycles += 1;
-        if((address & 0xFF00) != (state->PC & 0xFF00)) {
+        if((address & 0xFF00) != (PC & 0xFF00)) {
             clockCycles += 1;
         }
-        state->PC = address;
+        PC = address;
     }
     return clockCycles;
 }

@@ -5,6 +5,10 @@
 #include <stdint.h>
 #include <array>
 
+#include "cpu6502.h"
+
+class CPU6502state;
+
 #define PPUCTRL 0x2000
 #define PPUMASK 0x2001
 #define PPUSTATUS 0x2002
@@ -63,6 +67,8 @@ class PPU2C02state {
         uint8_t ppuaddr;
         uint8_t ppudata;
         uint8_t oamdma;
+
+        CPU6502state* cpu;
 
         //initalize the PPU (ppu2C02.c)
         PPU2C02state();

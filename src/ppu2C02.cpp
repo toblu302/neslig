@@ -16,7 +16,7 @@ uint8_t PPU2C02state::PPUcycle(SDL_Surface *screenSurface) {
 
     if( nmi_output && nmi_occurred ) {
         nmi_occurred = 0;
-        NMI(&CPU_state);
+        cpu->NMI();
     }
 
     //update cycles/scanlines
@@ -280,7 +280,7 @@ uint8_t PPU2C02state::writeRegisters(uint16_t address, uint8_t value) {
     else if(address == 0x4014) {
         int i;
         for(i=0; i<=0xFF; ++i) {
-            writeSPRRAM(i, CPU_state.ram[(value << 8)|i] );
+            writeSPRRAM(i, cpu->ram[(value << 8)|i] );
         }
         return 513 + odd_frame; //I think?
     }

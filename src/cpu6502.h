@@ -9,6 +9,8 @@
 #include "filereader.h"
 #include "ppu2C02.h"
 
+class PPU2C02state;
+
 #define N 7
 #define V 6
 #define UNDEFINED 5
@@ -98,6 +100,8 @@ static const int pageBreakingLookup[256] =
 // class to store the state of the processor
 class CPU6502state {
     public:
+        CPU6502state(std::shared_ptr<Cartridge> cartridge, std::shared_ptr<PPU2C02state> ppu);
+
         std::array<uint8_t, 0x800> ram;
         uint16_t PC; //program counter (16 bits)
         uint16_t SP; //stack pointer (16 bits)
@@ -109,49 +113,51 @@ class CPU6502state {
         uint8_t readRAM(uint16_t address);
         uint8_t writeRAM(uint16_t address, uint8_t value);
 
-        Cartridge cartridge;
+        std::shared_ptr<Cartridge> cartridge;
         std::shared_ptr<PPU2C02state> ppu;
+
+        //fetches and executes an opcode
+        int updateZN(uint8_t variable);
+        uint8_t fetchAndExecute();
+
+        //interrupts
+        void NMI();
+
+        //CPU addressing modes (implemented in cpu6502instructions.c)
+        uint16_t getAddress(uint8_t opcode);
+
+        uint16_t addressImmediate();
+        uint16_t addressZeroPage();
+        uint16_t addressZeroPageX();
+        uint16_t addressZeroPageY();
+        int8_t addressRelative();
+        uint16_t addressAbsolute();
+        uint16_t addressAbsoluteX();
+        uint16_t addressAbsoluteY();
+        uint16_t addressIndirect();
+        uint16_t addressIndexedIndirect();
+        uint16_t addressIndirectIndexed();
+
+        int updateCCompare(int var1, int var2);
+        uint8_t isPageBreaking(uint8_t opcode);
+
+        void pushStack(int value);
+        uint8_t popStack();
+
+        //CPU instructions (implemented in cpu6502instructions.c)
+        void ADC(uint8_t argument);
+        void SBC(uint8_t argument);
+        uint8_t LSR(uint8_t argument);
+        uint8_t ASL(uint8_t argument);
+        uint8_t ROR(uint8_t argument);
+        uint8_t ROL(uint8_t argument);
+        void DEC(uint16_t argument);
+        void INC(uint16_t argument);
+        void SLO(uint16_t argument);
+        void RLA(uint16_t argument);
+        void RRA(uint16_t argument);
+        void SRE(uint16_t argument);
+        uint8_t BXX(uint16_t address, int flag, bool shouldBeSet);
 };
-extern CPU6502state CPU_state;
-
-//initalize the CPU
-int initCPU6502(CPU6502state *state, Cartridge cartridge, std::shared_ptr<PPU2C02state> ppu);
-
-//fetches and executes an opcode
-int updateZN(CPU6502state *state, uint8_t variable);
-uint8_t fetchAndExecute(CPU6502state *state);
-
-//interrupts
-void NMI(CPU6502state *state);
-
-//CPU addressing modes (implemented in cpu6502instructions.c)
-uint16_t getAddress(CPU6502state *state, uint8_t opcode);
-
-uint16_t addressImmediate(CPU6502state* state);
-uint16_t addressZeroPage(CPU6502state* state);
-uint16_t addressZeroPageX(CPU6502state* state);
-uint16_t addressZeroPageY(CPU6502state* state);
-int8_t addressRelative(CPU6502state* state);
-uint16_t addressAbsolute(CPU6502state* state);
-uint16_t addressAbsoluteX(CPU6502state* state);
-uint16_t addressAbsoluteY(CPU6502state* state);
-uint16_t addressIndirect(CPU6502state* state);
-uint16_t addressIndexedIndirect(CPU6502state* state);
-uint16_t addressIndirectIndexed(CPU6502state* state);
-
-//CPU instructions (implemented in cpu6502instructions.c)
-void ADC(CPU6502state* state, uint8_t argument);
-void SBC(CPU6502state* state, uint8_t argument);
-uint8_t LSR(CPU6502state* state, uint8_t argument);
-uint8_t ASL(CPU6502state* state, uint8_t argument);
-uint8_t ROR(CPU6502state* state, uint8_t argument);
-uint8_t ROL(CPU6502state* state, uint8_t argument);
-void DEC(CPU6502state* state, uint16_t argument);
-void INC(CPU6502state* state, uint16_t argument);
-void SLO(CPU6502state* state, uint16_t argument);
-void RLA(CPU6502state* state, uint16_t argument);
-void RRA(CPU6502state* state, uint16_t argument);
-void SRE(CPU6502state* state, uint16_t argument);
-uint8_t BXX(CPU6502state* state, uint16_t address, int flag, bool shouldBeSet);
 
 #endif // CPU6502_H_INCLUDED

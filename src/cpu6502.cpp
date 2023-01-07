@@ -5,77 +5,73 @@
 #include "cpu6502.h"
 #include "ppu2C02.h"
 
-CPU6502state CPU_state;
+CPU6502state::CPU6502state(std::shared_ptr<Cartridge> cartridge, std::shared_ptr<PPU2C02state> ppu) {
+    this->cartridge = cartridge;
 
-int initCPU6502(CPU6502state *state, Cartridge cartridge, std::shared_ptr<PPU2C02state> ppu) {
-    state->cartridge = cartridge;
+    PC = 0xC000;
+    SP = 0xFD;
+    X = 0;
+    Y = 0;
+    P = 0x24;
+    A = 0;
 
-    state->PC = 0xC000;
-    state->SP = 0xFD;
-    state->X = 0;
-    state->Y = 0;
-    state->P = 0x24;
-    state->A = 0;
+    uint8_t high = readRAM(0xFFFD);
+    uint8_t low = readRAM(0xFFFC);
+    PC = (high << 8) | low;
+    this->ppu = ppu;
 
-    uint8_t high = state->readRAM(0xFFFD);
-    uint8_t low = state->readRAM(0xFFFC);
-    state->PC = (high << 8) | low;
-    state->ppu = ppu;
-
-    //printf("pc: %X %x %x\n", state->PC, high, low);
-
-    return 1;
+    //printf("pc: %X %x %x\n", PC, high, low);
 }
 
-int updateZN(CPU6502state *state, uint8_t variable) {
-    state->P &= ~(1<<Z);
+int CPU6502state::updateZN(uint8_t variable) {
+    P &= ~(1<<Z);
 
     if(variable == 0) {
-        state->P |= (1<<Z);
+        P |= (1<<Z);
     }
 
-    state->P &= ~(1<<N);
+    P &= ~(1<<N);
     if(variable & (1 << 7)) {
-        state->P |= (1<<N);
+        P |= (1<<N);
     }
 
     return 0;
 }
 
-int updateCCompare(CPU6502state *state, int var1, int var2) {
-    state->P &= ~(1<<C);
+int CPU6502state::updateCCompare(int var1, int var2) {
+    P &= ~(1<<C);
     if(var1>=var2) {
-        state->P |= (1<<C);
+        P |= (1<<C);
     }
 
     return 0;
 }
 
 //checks if running an opcode in a given state would cross a page boundary
-uint8_t isPageBreaking(CPU6502state *state, uint8_t opcode) {
+uint8_t CPU6502state::isPageBreaking(uint8_t opcode) {
     uint32_t address, low, high;
     enum addressingMode mode = addressModeLookup[opcode];
     switch(mode) {
         case ABSX:
-            low = state->readRAM(state->PC);
-            high = state->readRAM(state->PC+1);
-            if ( ((((high << 8) | low) + state->X) & 0xFF00) != (((high << 8) | low) & 0xFF00) ) {
+            low = readRAM(PC);
+            high = readRAM(PC+1);
+            if ( ((((high << 8) | low) + X) & 0xFF00) != (((high << 8) | low) & 0xFF00) ) {
                 return 1;
             }
             return 0;
         case ABSY:
-            low = state->readRAM(state->PC);
-            high = state->readRAM(state->PC+1);
-            if ( ((((high << 8) | low) + state->Y) & 0xFF00) != (((high << 8) | low) & 0xFF00) ) {
+            low = readRAM(PC);
+            high = readRAM(PC+1);
+            if ( ((((high << 8) | low) + Y) & 0xFF00) != (((high << 8) | low) & 0xFF00) ) {
                 return 1;
             }
             return 0;
         case INDINX:
-            address = state->readRAM(state->PC);
-            low = state->readRAM(address++);
-            high = state->readRAM( address & 0xFF );
+            address = readRAM(PC);
+            low = readRAM(address++);
+            high = readRAM( address & 0xFF );
 
-            if( ((((high << 8) | low) + state->Y) &0xFF00) != (((high << 8) | low) & 0xFF00) ) {
+            if( ((((high << 8) | low) + Y) &0xFF00) != (((high << 8) | low) & 0xFF00) ) {
                 return 1;
             }
 
@@ -88,58 +84,58 @@ uint8_t isPageBreaking(CPU6502state *state, uint8_t opcode) {
 /******************
 * stack operations
 ******************/
-void pushStack(CPU6502state* state, int value) {
-    state->writeRAM( 0x100 + state->SP, value );
-    state->SP -= 1;
-    state->SP &= 0xFF;
+void CPU6502state::pushStack(int value) {
+    writeRAM( 0x100 + SP, value );
+    SP -= 1;
+    SP &= 0xFF;
 }
 
-uint8_t popStack(CPU6502state* state) {
-    state->SP += 1;
-    state->SP &= 0xFF;
-    return state->readRAM( (0x100 + state->SP)&0x1FF );
+uint8_t CPU6502state::popStack() {
+    SP += 1;
+    SP &= 0xFF;
+    return readRAM( (0x100 + SP)&0x1FF );
 }
 
 /******************
 * interrupts
 ******************/
-void NMI(CPU6502state *state) {
-    uint8_t low = state->readRAM(0xFFFA);
-    uint8_t high = state->readRAM(0xFFFB);
+void CPU6502state::NMI() {
+    uint8_t low = readRAM(0xFFFA);
+    uint8_t high = readRAM(0xFFFB);
     uint16_t address = (high << 8) | low;
 
-    pushStack(state, state->PC >> 8);
-    pushStack(state, state->PC & 0xFF);
-    pushStack(state, state->P);
+    pushStack(PC >> 8);
+    pushStack(PC & 0xFF);
+    pushStack(P);
 
-    state->PC = address;
+    PC = address;
 }
 
 /******************
 * Fetches and executes an operating code
 ******************/
-uint8_t fetchAndExecute(CPU6502state *state) {
+uint8_t CPU6502state::fetchAndExecute() {
 
     //debugging variables
-    int oldPC = state->PC;
-    int oldA = state->A;
-    int oldX = state->X;
-    int oldY = state->Y;
-    int oldP = state->P;
-    int oldSP = state->SP;
+    int oldPC = PC;
+    int oldA = A;
+    int oldX = X;
+    int oldY = Y;
+    int oldP = P;
+    int oldSP = SP;
     char c1[3] = "  ";
     char c2[3] = "  ";
     char c3[3] = "  ";
     char instruction[4] = "   ";
     char after[27] = "                          ";
 
-    uint8_t opcode = state->readRAM( state->PC++ );
+    uint8_t opcode = readRAM( PC++ );
     uint8_t clockCycles = clockCycleLookup[opcode];
-    if(isPageBreaking(state, opcode)) {
+    if(isPageBreaking(opcode)) {
         uint8_t add = pageBreakingLookup[opcode];
         clockCycles += add;
     }
-    uint16_t address = getAddress(state, opcode) ;
+    uint16_t address = getAddress(opcode) ;
 
     switch(opcode) {
         /***********************
@@ -148,117 +144,117 @@ uint8_t fetchAndExecute(CPU6502state *state) {
         //LDY
         case 0xA0: case 0xA4: case 0xB4: case 0xAC:
         case 0xBC:{
-            state->Y = state->readRAM(address);
-            updateZN(state, state->Y);
+            Y = readRAM(address);
+            updateZN(Y);
             sprintf(instruction, "LDY");
             break;}
 
         //STY
         case 0x84: case 0x8C: case 0x94:{
-            clockCycles += state->writeRAM(address, state->Y);
+            clockCycles += writeRAM(address, Y);
             sprintf(instruction, "STY");
             break;}
 
         //LDX
         case 0xA2: case 0xA6: case 0xB6: case 0xAE:
         case 0xBE:{
-            state->X = state->readRAM(address);
-            updateZN(state, state->X);
+            X = readRAM(address);
+            updateZN(X);
             sprintf(instruction, "LDX");
             break;}
 
         //STX
         case 0x86: case 0x8E: case 0x96:{
-            clockCycles += state->writeRAM(address, state->X);
+            clockCycles += writeRAM(address, X);
             sprintf(instruction, "STX");
             break;}
 
         //TXA Implied
         case 0x8A:{
-            state->A = state->X;
-            updateZN(state, state->A);
+            A = X;
+            updateZN(A);
             sprintf(instruction, "TXA");
             break;}
 
         //TYA Implied
         case 0x98:{
-            state->A = state->Y;
-            updateZN(state, state->A);
+            A = Y;
+            updateZN(A);
             sprintf(instruction, "TYA");
             break;}
 
         //TXS Implied
         case 0x9A:{
-            state->SP = state->X;
+            SP = X;
             sprintf(instruction, "TXS");
             break;}
 
         //TAY Implied
         case 0xA8:{
-            state->Y = state->A;
-            updateZN(state, state->Y);
+            Y = A;
+            updateZN(Y);
             sprintf(instruction, "TAY");
             break;}
 
         //LDA Immediate
         case 0xA9: case 0xA5: case 0xB5: case 0xAD: case 0xBD: case 0xB9: case 0xA1:
         case 0xB1:{
-            state->A = state->readRAM(address);
-            updateZN(state, state->A);
+            A = readRAM(address);
+            updateZN(A);
             sprintf(instruction, "LDA");
             break;}
 
         //TAX Implied
         case 0xAA:{
-            state->X = state->A;
-            updateZN(state, state->X);
+            X = A;
+            updateZN(X);
             sprintf(instruction, "TAX");
             break;}
 
         //TSX Implied
         case 0xBA:{
-            state->X = state->SP;
-            updateZN(state, state->X);
+            X = SP;
+            updateZN(X);
             sprintf(instruction, "TSX");
             break;}
 
         //BIT
         case 0x24:
         case 0x2C:{
-            int inMemory = state->readRAM(address);
-            updateZN(state, inMemory&state->A);
-            state->P &= ~(1<<V);
-            if(inMemory & (1 << 6)) state->P |= (1<<V);
-            state->P &= ~(1<<N);
-            if(inMemory & (1 << 7)) state->P |= (1<<N);
+            int inMemory = readRAM(address);
+            updateZN(inMemory&A);
+            P &= ~(1<<V);
+            if(inMemory & (1 << 6)) P |= (1<<V);
+            P &= ~(1<<N);
+            if(inMemory & (1 << 7)) P |= (1<<N);
             sprintf(instruction, "BIT");
             break;}
 
         //INY Implied
         case 0xC8:{
-            state->Y += 1;
-            updateZN(state, state->Y);
+            Y += 1;
+            updateZN(Y);
             sprintf(instruction, "INY");
             break;}
 
         //DEY Implied
         case 0x88:{
-            state->Y -= 1;
-            updateZN(state, state->Y);
+            Y -= 1;
+            updateZN(Y);
             sprintf(instruction, "DEY");
             break;}
 
         //INX Implied
         case 0xE8:{
-            state->X += 1;
-            updateZN(state, state->X);
+            X += 1;
+            updateZN(X);
             sprintf(instruction, "INX");
             break;}
 
         //DEX Implied
         case 0xCA:{
-            state->X -= 1;
-            updateZN(state, state->X);
+            X -= 1;
+            updateZN(X);
             sprintf(instruction, "DEX");
             break;}
 
@@ -268,65 +264,65 @@ uint8_t fetchAndExecute(CPU6502state *state) {
         //AND
         case 0x29: case 0x25: case 0x35: case 0x2D:
         case 0x3D: case 0x39: case 0x21: case 0x31:{
-            state->A &= state->readRAM(address);
-            updateZN(state, state->A);
+            A &= readRAM(address);
+            updateZN(A);
             sprintf(instruction, "AND");
             break;}
 
         //CMP
         case 0xC9: case 0xC5: case 0xD5: case 0xCD:
         case 0xDD: case 0xD9: case 0xC1: case 0xD1:{
-            int comparator = state->readRAM(address);
-            updateCCompare(state, state->A,comparator);
-            updateZN(state, state->A-comparator);
+            int comparator = readRAM(address);
+            updateCCompare(A,comparator);
+            updateZN(A-comparator);
             sprintf(instruction, "CMP");
             break;}
 
         //ORA
         case 0x09: case 0x05: case 0x15: case 0x0D: case 0x1D:
         case 0x19: case 0x01: case 0x11:{
-            state->A |= state->readRAM(address);
-            updateZN(state, state->A);
+            A |= readRAM(address);
+            updateZN(A);
             sprintf(instruction, "ORA");
             break;}
 
         //EOR
         case 0x49: case 0x45: case 0x55: case 0x4D: case 0x5D:
         case 0x59: case 0x41: case 0x51:{
-            state->A ^= state->readRAM(address);
-            updateZN(state, state->A);
+            A ^= readRAM(address);
+            updateZN(A);
             sprintf(instruction, "EOR");
             break;}
 
         //ADC
         case 0x69: case 0x65: case 0x75: case 0x6D: case 0x7D:
         case 0x79: case 0x61: case 0x71:{
-            ADC(state, state->readRAM(address) );
+            ADC(readRAM(address) );
             sprintf(instruction, "ADC");
             break;}
 
         //SBC Immediate
         case 0xEB: case 0xE9: case 0xE5: case 0xF5: case 0xED:
         case 0xFD: case 0xF9: case 0xE1: case 0xF1:{
-            SBC(state, state->readRAM(address));
+            SBC(readRAM(address));
             sprintf(instruction, "SBC");
             break;}
 
         //CPY
         case 0xC0: case 0xC4:
         case 0xCC:{
-            int comparator = state->readRAM(address);
-            updateCCompare(state, state->Y,comparator);
-            updateZN(state, state->Y-comparator);
+            int comparator = readRAM(address);
+            updateCCompare(Y,comparator);
+            updateZN(Y-comparator);
             sprintf(instruction, "CPY");
             break;}
 
         //CPX
         case 0xE0: case 0xE4:
         case 0xEC:{
-            int comparator = state->readRAM(address);
-            updateCCompare(state, state->X,comparator);
-            updateZN(state, state->X-comparator);
+            int comparator = readRAM(address);
+            updateCCompare(X,comparator);
+            updateZN(X-comparator);
             sprintf(instruction, "CPX");
             break;}
 
@@ -335,26 +331,26 @@ uint8_t fetchAndExecute(CPU6502state *state) {
         ***********************/
         //PHP Implied
         case 0x08:{
-            pushStack(state, state->P | (1<<UNDEFINED) | (1<<B));
+            pushStack(P | (1<<UNDEFINED) | (1<<B));
             sprintf(instruction, "PHP");
             break;}
 
         //PLP Implied
         case 0x28:{
-            state->P = ((popStack(state) & ~(1<<B)) | (1<<UNDEFINED));
+            P = ((popStack() & ~(1<<B)) | (1<<UNDEFINED));
             sprintf(instruction, "PLP");
             break;}
 
         //PHA Implied
         case 0x48:{
-            pushStack(state, state->A);
+            pushStack(A);
             sprintf(instruction, "PHA");
             break;}
 
         //PLA Implied
         case 0x68:{
-            state->A = popStack(state);
-            updateZN(state, state->A);
+            A = popStack();
+            updateZN(A);
             sprintf(instruction, "PLA");
             break;}
 
@@ -363,95 +359,95 @@ uint8_t fetchAndExecute(CPU6502state *state) {
         ***********************/
         //SEI Implied
         case 0x78:{
-            state->P |= (1<<I);
+            P |= (1<<I);
             sprintf(instruction, "SEI");
             break;}
 
         //CLI Implied
         case 0x58:{
-            state->P &= ~(1<<I);
+            P &= ~(1<<I);
             sprintf(instruction, "CLI");
             break;}
 
         //SED Implied
         case 0xF8:{
-            state->P |= (1<<D);
+            P |= (1<<D);
             sprintf(instruction, "SED");
             break;}
 
         //CLD Implied
         case 0xD8:{
-            state->P &= ~(1<<D);
+            P &= ~(1<<D);
             sprintf(instruction, "CLD");
             break;}
 
         //SEC Implied
         case 0x38:{
-            state->P |= (1<<C);
+            P |= (1<<C);
             sprintf(instruction, "SEC");
             break;}
 
         //CLC Implied
         case 0x18:{
-            state->P &= ~(1<<C);
+            P &= ~(1<<C);
             sprintf(instruction, "CLC");
             break;}
 
         //CLV Implied
         case 0xB8:{
-            state->P &= ~(1<<V);
+            P &= ~(1<<V);
             sprintf(instruction, "CLV");
             break;}
 
         //ASL Accumulator
         case 0x0A:{
-            state->A = ASL(state, state->A);
+            A = ASL(A);
             sprintf(instruction, "ASL");
             break;}
 
         //ASL
         case 0x1E: case 0x0E: case 0x16:
         case 0x06:{
-            clockCycles += state->writeRAM(address, ASL(state, state->readRAM(address)));
+            clockCycles += writeRAM(address, ASL(readRAM(address)));
             sprintf(instruction, "ASL");
             break;}
 
         //LSR Accumulator
         case 0x4A:{
-            state->A = LSR(state, state->A);
+            A = LSR(A);
             sprintf(instruction, "LSR");
             break;}
 
         //LSR
         case 0x46: case 0x56: case 0x4E:
         case 0x5E:{
-            clockCycles += state->writeRAM(address, LSR(state, state->readRAM(address)));
+            clockCycles += writeRAM(address, LSR(readRAM(address)));
             sprintf(instruction, "LSR");
             break;}
 
         //ROR Accumulator
         case 0x6A:{
-            state->A = ROR(state, state->A);
+            A = ROR(A);
             sprintf(instruction, "ROR");
             break;}
 
         //ROR
         case 0x66: case 0x76: case 0x6E:
         case 0x7E:{
-            clockCycles += state->writeRAM(address, ROR(state, state->readRAM(address)));
+            clockCycles += writeRAM(address, ROR(readRAM(address)));
             sprintf(instruction, "ROR");
             break;}
 
         //ROL Accumulator
         case 0x2A:{
-            state->A = ROL(state, state->A);
+            A = ROL(A);
             sprintf(instruction, "ROL");
             break;}
 
         //ROL
         case 0x26: case 0x2E: case 0x3E:
         case 0x36:{
-            clockCycles += state->writeRAM(address, ROL(state, state->readRAM(address)));
+            clockCycles += writeRAM(address, ROL(readRAM(address)));
             sprintf(instruction, "ROL");
             break;}
 
@@ -461,21 +457,21 @@ uint8_t fetchAndExecute(CPU6502state *state) {
         //STA
         case 0x85: case 0x95: case 0x8D: case 0x9D:
         case 0x99: case 0x81: case 0x91:{
-            clockCycles += state->writeRAM(address, state->A);
+            clockCycles += writeRAM(address, A);
             sprintf(instruction, "STA");
             break;}
 
         //INC
         case 0xE6: case 0xF6: case 0xEE:
         case 0xFE:{
-            INC(state, address);
+            INC(address);
             sprintf(instruction, "INC");
             break;}
 
         //DEC
         case 0xC6: case 0xD6:
         case 0xCE: case 0xDE:{
-            DEC(state, address);
+            DEC(address);
             sprintf(instruction, "DEC");
             break;}
 
@@ -484,49 +480,49 @@ uint8_t fetchAndExecute(CPU6502state *state) {
         ***********************/
         //BNE Relative
         case 0xD0:{
-            BXX(state, address, Z, false);
+            BXX(address, Z, false);
             sprintf(instruction, "BNE");
             break;}
 
         //BCS Relative
         case 0xB0:{
-            BXX(state, address, C, true);
+            BXX(address, C, true);
             sprintf(instruction, "BCS");
             break;}
 
         //BEQ Relative
         case 0xF0:{
-            BXX(state, address, Z, true);
+            BXX(address, Z, true);
             sprintf(instruction, "BEQ");
             break;}
 
         //BMI Relative
         case 0x30:{
-            BXX(state, address, N, true);
+            BXX(address, N, true);
             sprintf(instruction, "BMI");
             break;}
 
         //BCC Relative
         case 0x90:{
-            BXX(state, address, C, false);
+            BXX(address, C, false);
             sprintf(instruction, "BCC");
             break;}
 
         //BVS Relative
         case 0x70:{
-            BXX(state, address, V, true);
+            BXX(address, V, true);
             sprintf(instruction, "BVS");
             break;}
 
         //BVC Relative
         case 0x50:{
-            BXX(state, address, V, false);
+            BXX(address, V, false);
             sprintf(instruction, "BVC");
             break;}
 
         //BPL Relative
         case 0x10:{
-            BXX(state, address, N, false);
+            BXX(address, N, false);
             sprintf(instruction, "BPL");
             break;}
 
@@ -535,53 +531,53 @@ uint8_t fetchAndExecute(CPU6502state *state) {
         ***********************/
         //JSR Absolute
         case 0x20:{
-            pushStack(state, ((state->PC-1) & 0xFF00) >> 8);
-            pushStack(state, (state->PC-1) & 0xFF);
+            pushStack(((PC-1) & 0xFF00) >> 8);
+            pushStack((PC-1) & 0xFF);
 
-            state->PC = address;
+            PC = address;
             sprintf(instruction, "JSR");
             break;}
 
         //JMP Absolute
         case 0x4C:{
-            state->PC = address;
+            PC = address;
             sprintf(instruction, "JMP");
             break;}
 
         //JMP Indirect
         case 0x6C:{
-            state->PC = address;
+            PC = address;
             sprintf(instruction, "JMP");
             break;}
 
         //RTS Implied
         case 0x60:{
-            uint8_t low = popStack(state);
-            uint8_t high = popStack(state);
+            uint8_t low = popStack();
+            uint8_t high = popStack();
 
-            state->PC = ((high << 8) | low)+1;
+            PC = ((high << 8) | low)+1;
 
             sprintf(instruction, "RTS");
             break;}
 
         //RTI Implied
         case 0x40:{
-            state->P = (popStack(state) & ~(1<<B)) | (1<<UNDEFINED);
-            int low = popStack(state);
-            int high = popStack(state);
-            state->PC = ((high << 8) | low);
+            P = (popStack() & ~(1<<B)) | (1<<UNDEFINED);
+            int low = popStack();
+            int high = popStack();
+            PC = ((high << 8) | low);
             sprintf(instruction, "RTI");
             break;}
 
         //BRK Implied
         case 0x00:{
-            pushStack(state, ((state->PC+1) & 0xFF00) >> 8);
-            pushStack(state, (state->PC+1) & 0xFF);
-            pushStack(state, state->P | (1<<UNDEFINED) | (1<<B));
-            uint8_t low = state->readRAM(0xFFFE);
-            uint8_t high = state->readRAM(0xFFFF);
-            state->PC = (high << 8) | low;
-            state->P |= (1<<B);
+            pushStack(((PC+1) & 0xFF00) >> 8);
+            pushStack((PC+1) & 0xFF);
+            pushStack(P | (1<<UNDEFINED) | (1<<B));
+            uint8_t low = readRAM(0xFFFE);
+            uint8_t high = readRAM(0xFFFF);
+            PC = (high << 8) | low;
+            P |= (1<<B);
             sprintf(instruction, "BRK");
             break;}
 
@@ -592,61 +588,61 @@ uint8_t fetchAndExecute(CPU6502state *state) {
         //LAX (LDA -> TAX)
         case 0xA7: case 0xB7: case 0xAF: case 0xBF:
         case 0xA3: case 0xB3:{
-            state->A = state->readRAM(address);
-            state->X = state->A;
-            updateZN(state, state->X);
+            A = readRAM(address);
+            X = A;
+            updateZN(X);
             sprintf(instruction, "LAX");
             break;}
 
         //SAX
         case 0x87: case 0x97: case 0x8F: case 0x83:{
-            clockCycles += state->writeRAM(address, state->A & state->X);
+            clockCycles += writeRAM(address, A & X);
             sprintf(instruction, "SAX");
             break;}
 
         //DCP
         case 0xC7: case 0xD7: case 0xCF: case 0xDF:
         case 0xDB: case 0xC3: case 0xD3:{
-            DEC(state, address);
-            uint8_t comparator = state->readRAM(address);
-            updateCCompare(state, state->A,comparator);
-            updateZN(state, state->A-comparator);
+            DEC(address);
+            uint8_t comparator = readRAM(address);
+            updateCCompare(A,comparator);
+            updateZN(A-comparator);
             sprintf(instruction, "DCP");
             break;}
 
         //ISB
         case 0xE7: case 0xF7: case 0xEF: case 0xFF:
         case 0xFB: case 0xE3: case 0xF3:{
-            INC(state, address);
-            SBC(state, state->readRAM(address));
+            INC(address);
+            SBC(readRAM(address));
             sprintf(instruction, "ISB");
             break;}
 
         //SLO
         case 0x07: case 0x17: case 0x0F: case 0x1F:
         case 0x1B: case 0x03: case 0x13:{
-            SLO(state, address);
+            SLO(address);
             sprintf(instruction, "SLO");
             break;}
 
         //RLA
         case 0x27: case 0x37: case 0x2F: case 0x3F:
         case 0x3B: case 0x23: case 0x33:{
-            RLA(state, address);
+            RLA(address);
             sprintf(instruction, "RLA");
             break;}
 
         //SRE
         case 0x47: case 0x57: case 0x4F: case 0x5F:
         case 0x43: case 0x53: case 0x5B:{
-            SRE(state, address);
+            SRE(address);
             sprintf(instruction, "SRE");
             break;}
 
         //RRA
         case 0x77: case 0x6F: case 0x7F: case 0x7B:
         case 0x67: case 0x63: case 0x73:{
-            RRA(state, address);
+            RRA(address);
             sprintf(instruction, "RRA");
             break;}
 
@@ -722,7 +718,7 @@ uint8_t CPU6502state::readRAM(uint16_t address) {
 
     // Cartridge
     else if (address >= 0x4020) {
-        retVal = cartridge.readMemory(address);
+        retVal = cartridge->readMemory(address);
     }
 
     return retVal;
