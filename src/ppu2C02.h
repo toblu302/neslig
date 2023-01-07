@@ -64,6 +64,32 @@ class PPU2C02state {
         uint8_t ppudata;
         uint8_t oamdma;
 
+        //initalize the PPU (ppu2C02.c)
+        PPU2C02state();
+
+        //Ticking (ppu2C02.c)
+        uint8_t PPUcycle(SDL_Surface *screenSurface);
+        void handleVisibleScanline();
+        void horinc();
+        void verinc();
+
+        uint8_t rendering_enabled();
+
+        //Rendering stuff (ppu2C02rendering.c)
+        void setPixelColor(SDL_Surface* screenSurface, int x, int y, uint32_t color);
+        void renderPixel(SDL_Surface* screenSurface);
+        void updatePPUrenderingData();
+
+        //Loading stuff (ppu2C02rendering.c)
+        uint16_t getSpritePaletteBase(uint8_t attribute_value);
+        uint16_t getBackgroundPaletteBase(uint16_t attribute_value);
+
+        void fetchAttribute();
+        uint8_t getAttributeTableValue(uint16_t attribute_address, uint8_t x, uint8_t y);
+
+        void loadScanlineSprites();
+        int getActiveSpriteIndex();
+
         uint8_t readRegisters(uint16_t address);
         uint8_t writeRegisters(uint16_t address, uint8_t value);
 
@@ -101,32 +127,5 @@ class PPU2C02state {
         uint8_t num_sprites;
         PPUsprite sprites[8];
 };
-extern PPU2C02state PPU_state;
-
-//initalize the PPU (ppu2C02.c)
-int initPPU2C02(PPU2C02state *state);
-
-//Ticking (ppu2C02.c)
-uint8_t PPUcycle(PPU2C02state *state, SDL_Surface *screenSurface);
-void handleVisibleScanline(PPU2C02state *state);
-void horinc();
-void verinc();
-
-uint8_t rendering_enabled();
-
-//Rendering stuff (ppu2C02rendering.c)
-void setPixelColor(SDL_Surface* screenSurface, int x, int y, uint32_t color);
-void renderPixel(SDL_Surface* screenSurface, PPU2C02state *state);
-void updatePPUrenderingData(PPU2C02state *state);
-
-//Loading stuff (ppu2C02rendering.c)
-uint16_t getSpritePaletteBase(uint8_t attribute_value);
-uint16_t getBackgroundPaletteBase(uint16_t attribute_value);
-
-void fetchAttribute(PPU2C02state *state);
-uint8_t getAttributeTableValue(uint16_t attribute_address, uint8_t x, uint8_t y);
-
-void loadScanlineSprites(PPU2C02state *state);
-int getActiveSpriteIndex(PPU2C02state *state);
 
 #endif // PPU2C02_H_INCLUDED

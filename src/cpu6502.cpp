@@ -7,7 +7,7 @@
 
 CPU6502state CPU_state;
 
-int initCPU6502(CPU6502state *state, Cartridge cartridge) {
+int initCPU6502(CPU6502state *state, Cartridge cartridge, std::shared_ptr<PPU2C02state> ppu) {
     state->cartridge = cartridge;
 
     state->PC = 0xC000;
@@ -20,6 +20,7 @@ int initCPU6502(CPU6502state *state, Cartridge cartridge) {
     uint8_t high = state->readRAM(0xFFFD);
     uint8_t low = state->readRAM(0xFFFC);
     state->PC = (high << 8) | low;
+    state->ppu = ppu;
 
     //printf("pc: %X %x %x\n", state->PC, high, low);
 
@@ -678,7 +679,7 @@ uint8_t CPU6502state::writeRAM(uint16_t address, uint8_t value) {
 
     // Deal with ppu
     if ((address >= 0x2000 && address <= 0x2007) || address == 0x4014) {
-        PPU_state.writeRegisters(address, value);
+        ppu->writeRegisters(address, value);
     }
 
     // Controller 1
@@ -688,7 +689,7 @@ uint8_t CPU6502state::writeRAM(uint16_t address, uint8_t value) {
 
     // Regular write
     else if (address < 0x800) {
-        this->ram[address] = value;
+        ram[address] = value;
     }
 
     return 0;
@@ -706,7 +707,7 @@ uint8_t CPU6502state::readRAM(uint16_t address) {
 
     // PPU registers
     if((address >= 0x2000 && address <= 0x2007) || address == 0x4014) {
-        return PPU_state.readRegisters(address);
+        return ppu->readRegisters(address);
     }
 
     // Controller 1

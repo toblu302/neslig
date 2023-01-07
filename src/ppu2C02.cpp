@@ -2,87 +2,83 @@
 #include "ppu2C02.h"
 #include "cpu6502.h"
 
-PPU2C02state PPU_state;
+PPU2C02state::PPU2C02state() {
+    scanline = 241;
+    dot = 0;
+    odd_frame = 0;
+    nmi_occurred = 0;
+    nmi_output = 0;
 
-int initPPU2C02(PPU2C02state *state) {
-    state->scanline = 241;
-    state->dot = 0;
-    state->odd_frame = 0;
-    state->nmi_occurred = 0;
-    state->nmi_output = 0;
-
-    state->oam.fill(0xff);
-
-    return 1;
+    oam.fill(0xff);
 }
 
-uint8_t PPUcycle(PPU2C02state *state, SDL_Surface *screenSurface) {
+uint8_t PPU2C02state::PPUcycle(SDL_Surface *screenSurface) {
 
-    if( state->nmi_output && state->nmi_occurred ) {
-        state->nmi_occurred = 0;
+    if( nmi_output && nmi_occurred ) {
+        nmi_occurred = 0;
         NMI(&CPU_state);
     }
 
     //update cycles/scanlines
-    state->dot += 1;
-    if(state->dot == 341) {
-        state->scanline += 1;
-        state->dot = 0;
+    dot += 1;
+    if(dot == 341) {
+        scanline += 1;
+        dot = 0;
     }
-    state->scanline %= 262;
+    scanline %= 262;
     //skip first cycle on odd frames
-    if(state->scanline == 0 && state->dot == 0 && state->odd_frame == 1 && rendering_enabled()) {
-        state->dot = 1;
+    if(scanline == 0 && dot == 0 && odd_frame == 1 && rendering_enabled()) {
+        dot = 1;
     }
 
     //visible scanlines
-    if( state->scanline < 240 && rendering_enabled() ) {
-        handleVisibleScanline(state);
+    if( scanline < 240 && rendering_enabled() ) {
+        handleVisibleScanline();
 
         //visible cycles
-        if( state->dot < 256 ) {
-            renderPixel(screenSurface, state);
+        if( dot < 256 ) {
+            renderPixel(screenSurface);
         }
     }
 
     //Post-screen scanline
-    else if(state->scanline == 241) {
-        if(state->dot == 1) {
-            state->nmi_occurred = 1;
-            state->odd_frame ^= 1;
+    else if(scanline == 241) {
+        if(dot == 1) {
+            nmi_occurred = 1;
+            odd_frame ^= 1;
 
             return 1;
         }
     }
 
     //Pre-screen scanline
-    else if(state->scanline == 261) {
+    else if(scanline == 261) {
 
-        handleVisibleScanline(state);
+        handleVisibleScanline();
 
-        if(state->dot == 2) {
-            state->sprite_zero_hit = 0;
-            state->nmi_occurred = 0;
+        if(dot == 2) {
+            sprite_zero_hit = 0;
+            nmi_occurred = 0;
         }
 
-        else if(state->dot >= 280 && state->dot <= 304 && rendering_enabled()) {
+        else if(dot >= 280 && dot <= 304 && rendering_enabled()) {
             //v: IHGF.ED CBA..... = t: IHGF.ED CBA.....
-            PPU_state.VRAM_address &= 1055; //1055 = 0000010000011111b
-            PPU_state.VRAM_address |= (PPU_state.t & ~1055 & ~(1<<15) );
+            VRAM_address &= 1055; //1055 = 0000010000011111b
+            VRAM_address |= (t & ~1055 & ~(1<<15) );
         }
     }
 
     return 0;
 }
 
-uint8_t rendering_enabled() {
-    return PPU_state.ppumask & ((1<<3)|(1<<4));
+uint8_t PPU2C02state::rendering_enabled() {
+    return ppumask & ((1<<3)|(1<<4));
 }
 
-void handleVisibleScanline(PPU2C02state *state) {
+void PPU2C02state::handleVisibleScanline() {
 
-    if( state->dot == 0 ) {
-        loadScanlineSprites(state);
+    if( dot == 0 ) {
+        loadScanlineSprites();
         return;
     }
     if( !rendering_enabled() ) {
@@ -90,78 +86,78 @@ void handleVisibleScanline(PPU2C02state *state) {
     }
 
     //shift the shift registers
-    if( state->dot <= 255 || (state->dot > 320 && state->dot <= 336) ) {
-        updatePPUrenderingData(state);
+    if( dot <= 255 || (dot > 320 && dot <= 336) ) {
+        updatePPUrenderingData();
     }
 
     uint16_t pattern_base = 0x0000;
-    if( state->ppuctrl & (1 << 4) ) {
+    if( ppuctrl & (1 << 4) ) {
         pattern_base = 0x1000;
     }
-    uint16_t pattern_index = state->vram[state->nametable_base];
-    uint8_t row = ((state->VRAM_address&0x7000) >> 12);
+    uint16_t pattern_index = vram[nametable_base];
+    uint8_t row = ((VRAM_address&0x7000) >> 12);
 
-    if( state->dot < 256 || (state->dot > 320 && state->dot <= 336) ) {
+    if( dot < 256 || (dot > 320 && dot <= 336) ) {
 
         //update the latches, depending on the cycle
-        switch( state->dot % 8 ) {
+        switch( dot % 8 ) {
             case 0:
-                state->bitmap_shift_0 |= state->bitmap_shift_0_latch;
-                state->bitmap_shift_1 |= state->bitmap_shift_1_latch;
+                bitmap_shift_0 |= bitmap_shift_0_latch;
+                bitmap_shift_1 |= bitmap_shift_1_latch;
 
-                state->AT_shift_0 |= state->AT_shift_0_latch;
-                state->AT_shift_1 |= state->AT_shift_1_latch;
+                AT_shift_0 |= AT_shift_0_latch;
+                AT_shift_1 |= AT_shift_1_latch;
 
                 horinc();
                 break;
             case 1:
-                state->nametable_base = (0x2000 | (state->VRAM_address & 0x0FFF));
+                nametable_base = (0x2000 | (VRAM_address & 0x0FFF));
                 break;
             case 3:
-                fetchAttribute(state);
+                fetchAttribute();
                 break;
             case 5:
-                state->bitmap_shift_0_latch = state->vram[pattern_base + pattern_index*16+row];
+                bitmap_shift_0_latch = vram[pattern_base + pattern_index*16+row];
                 break;
             case 7:
-                state->bitmap_shift_1_latch = state->vram[pattern_base + pattern_index*16+row+8];
+                bitmap_shift_1_latch = vram[pattern_base + pattern_index*16+row+8];
                 break;
         }
 
     }
 
-    if( state->dot == 256 ) {
+    if( dot == 256 ) {
         verinc();
     }
 
-    if( state->dot == 257 ) {
+    if( dot == 257 ) {
         //v: ....F.. ...EDCBA = t: ....F.. ...EDCBA
-        state->VRAM_address &= 31712; //31712 = 0111101111100000b
-        state->VRAM_address |= (state->t & ~31712);
+        VRAM_address &= 31712; //31712 = 0111101111100000b
+        VRAM_address |= (t & ~31712);
     }
 
 }
 
-void horinc() {
-    if ((PPU_state.VRAM_address & 0x001F) == 0x001F) {
-        PPU_state.VRAM_address &= ~0x001F;
-        PPU_state.VRAM_address ^= 0x0400;
+void PPU2C02state::horinc() {
+    if ((VRAM_address & 0x001F) == 0x001F) {
+        VRAM_address &= ~0x001F;
+        VRAM_address ^= 0x0400;
     }
     else {
-        PPU_state.VRAM_address += 1;
+        VRAM_address += 1;
     }
 }
 
-void verinc() {
-    if ((PPU_state.VRAM_address & 0x7000) != 0x7000) {
-        PPU_state.VRAM_address += 0x1000;
+void PPU2C02state::verinc() {
+    if ((VRAM_address & 0x7000) != 0x7000) {
+        VRAM_address += 0x1000;
     }
     else {
-        PPU_state.VRAM_address &= ~0x7000;
-        uint16_t y = ((PPU_state.VRAM_address & 0x03E0) >> 5);
+        VRAM_address &= ~0x7000;
+        uint16_t y = ((VRAM_address & 0x03E0) >> 5);
         if (y == 29) {
             y = 0;
-            PPU_state.VRAM_address ^= 0x0800;
+            VRAM_address ^= 0x0800;
         }
         else if (y == 31) {
             y = 0;
@@ -169,7 +165,7 @@ void verinc() {
         else {
             y += 1;
         }
-        PPU_state.VRAM_address = ((PPU_state.VRAM_address & ~0x03E0) | (y << 5));
+        VRAM_address = ((VRAM_address & ~0x03E0) | (y << 5));
     }
 }
 
@@ -286,7 +282,7 @@ uint8_t PPU2C02state::writeRegisters(uint16_t address, uint8_t value) {
         for(i=0; i<=0xFF; ++i) {
             writeSPRRAM(i, CPU_state.ram[(value << 8)|i] );
         }
-        return 513 + PPU_state.odd_frame; //I think?
+        return 513 + odd_frame; //I think?
     }
 
     return 0;
@@ -294,12 +290,12 @@ uint8_t PPU2C02state::writeRegisters(uint16_t address, uint8_t value) {
 
 void PPU2C02state::writeVRAM(uint16_t address, uint8_t value) {
     assert(address <= 0x3F20);
-    this->vram[address] = value;
+    vram[address] = value;
     if( address == 0x3F10 || address == 0x3F14 || address == 0x3F18 || address == 0x3F1C ) {
         address -= 0x10;
     }
     address &= 0x3FFF;
-    this->vram[address] = value;
+    vram[address] = value;
 }
 
 uint8_t PPU2C02state::readVRAM(uint16_t address) {

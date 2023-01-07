@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <SDL2/SDL.h>
 #include <assert.h>
+#include <memory>
 
 #include "controller.h"
 #include "cpu6502.h"
@@ -20,14 +21,13 @@ int main(int argc, char *argv[])
     printf("PRGROM: %d  CHRROM: %d  mapper: %d\n", cartridge.prg_rom_banks.size(), cartridge.chr_rom_banks.size(), cartridge.mapper);
     //assert(cartridge.mapper == 0);
 
-    //initalize the CPU
-    initCPU6502(&CPU_state, cartridge);
+    std::shared_ptr<PPU2C02state> ppu = std::make_shared<PPU2C02state>();
 
-    //initalize the PPU
-    initPPU2C02(&PPU_state);
+    //initalize the CPU
+    initCPU6502(&CPU_state, cartridge, ppu);
 
     //Copy the ROM into the PPU's memory
-    std::copy(cartridge.chr_rom_banks[0].begin(), cartridge.chr_rom_banks[0].end(), (&PPU_state)->vram.begin());
+    std::copy(cartridge.chr_rom_banks[0].begin(), cartridge.chr_rom_banks[0].end(), ppu->vram.begin());
 
     //initalize the Controller
     initController(&NES_Controller);
@@ -67,7 +67,7 @@ int main(int argc, char *argv[])
             uint8_t loop = cycles*3;
             while( loop != 0 )
             {
-                frame_finished |= PPUcycle(&PPU_state, screenSurface);
+                frame_finished |= ppu->PPUcycle(screenSurface);
                 loop -= 1;
             }
         }

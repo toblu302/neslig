@@ -2,10 +2,12 @@
 #define CPU6502_H_INCLUDED
 
 #include <array>
+#include <memory>
 
 #include <stdint.h>
 
 #include "filereader.h"
+#include "ppu2C02.h"
 
 #define N 7
 #define V 6
@@ -108,11 +110,12 @@ class CPU6502state {
         uint8_t writeRAM(uint16_t address, uint8_t value);
 
         Cartridge cartridge;
+        std::shared_ptr<PPU2C02state> ppu;
 };
 extern CPU6502state CPU_state;
 
 //initalize the CPU
-int initCPU6502(CPU6502state *state, Cartridge cartridge);
+int initCPU6502(CPU6502state *state, Cartridge cartridge, std::shared_ptr<PPU2C02state> ppu);
 
 //fetches and executes an opcode
 int updateZN(CPU6502state *state, uint8_t variable);
