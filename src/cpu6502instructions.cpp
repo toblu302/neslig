@@ -183,34 +183,34 @@ uint8_t CPU6502state::ROL(uint8_t value) {
 }
 
 void CPU6502state::DEC(uint16_t address) {
-    writeRAM(address, ReadRam(address)-1);
+    WriteRam(address, ReadRam(address)-1);
     updateZN(ReadRam(address));
 }
 
 void CPU6502state::INC(uint16_t address) {
-    writeRAM(address, ReadRam(address)+1);
+    WriteRam(address, ReadRam(address)+1);
     updateZN(ReadRam(address));
 }
 
 void CPU6502state::SLO(uint16_t address) {
-    writeRAM(address, ASL(ReadRam(address)));
+    WriteRam(address, ASL(ReadRam(address)));
     A |= ReadRam(address);
     updateZN(A);
 }
 
 void CPU6502state::RLA(uint16_t address) {
-    writeRAM(address, ROL(ReadRam(address)));
+    WriteRam(address, ROL(ReadRam(address)));
     A &= ReadRam(address);
     updateZN(A);
 }
 
 void CPU6502state::RRA(uint16_t address) {
-    writeRAM(address, ROR(ReadRam(address)));
+    WriteRam(address, ROR(ReadRam(address)));
     ADC(ReadRam(address));
 }
 
 void CPU6502state::SRE(uint16_t address) {
-    writeRAM(address, LSR(ReadRam(address)));
+    WriteRam(address, LSR(ReadRam(address)));
 
     A ^= ReadRam(address);
     updateZN(A);

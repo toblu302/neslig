@@ -86,7 +86,7 @@ uint8_t CPU6502state::isPageBreaking(uint8_t opcode) {
 * stack operations
 ******************/
 void CPU6502state::pushStack(int value) {
-    writeRAM( 0x100 + SP, value );
+    WriteRam( 0x100 + SP, value );
     SP -= 1;
     SP &= 0xFF;
 }
@@ -157,7 +157,7 @@ uint8_t CPU6502state::fetchAndExecute() {
 
         //STY
         case 0x84: case 0x8C: case 0x94:{
-            clockCycles += writeRAM(address, Y);
+            clockCycles += WriteRam(address, Y);
             sprintf(instruction, "STY");
             break;}
 
@@ -171,7 +171,7 @@ uint8_t CPU6502state::fetchAndExecute() {
 
         //STX
         case 0x86: case 0x8E: case 0x96:{
-            clockCycles += writeRAM(address, X);
+            clockCycles += WriteRam(address, X);
             sprintf(instruction, "STX");
             break;}
 
@@ -414,7 +414,7 @@ uint8_t CPU6502state::fetchAndExecute() {
         //ASL
         case 0x1E: case 0x0E: case 0x16:
         case 0x06:{
-            clockCycles += writeRAM(address, ASL(ReadRam(address)));
+            clockCycles += WriteRam(address, ASL(ReadRam(address)));
             sprintf(instruction, "ASL");
             break;}
 
@@ -427,7 +427,7 @@ uint8_t CPU6502state::fetchAndExecute() {
         //LSR
         case 0x46: case 0x56: case 0x4E:
         case 0x5E:{
-            clockCycles += writeRAM(address, LSR(ReadRam(address)));
+            clockCycles += WriteRam(address, LSR(ReadRam(address)));
             sprintf(instruction, "LSR");
             break;}
 
@@ -440,7 +440,7 @@ uint8_t CPU6502state::fetchAndExecute() {
         //ROR
         case 0x66: case 0x76: case 0x6E:
         case 0x7E:{
-            clockCycles += writeRAM(address, ROR(ReadRam(address)));
+            clockCycles += WriteRam(address, ROR(ReadRam(address)));
             sprintf(instruction, "ROR");
             break;}
 
@@ -453,7 +453,7 @@ uint8_t CPU6502state::fetchAndExecute() {
         //ROL
         case 0x26: case 0x2E: case 0x3E:
         case 0x36:{
-            clockCycles += writeRAM(address, ROL(ReadRam(address)));
+            clockCycles += WriteRam(address, ROL(ReadRam(address)));
             sprintf(instruction, "ROL");
             break;}
 
@@ -463,7 +463,7 @@ uint8_t CPU6502state::fetchAndExecute() {
         //STA
         case 0x85: case 0x95: case 0x8D: case 0x9D:
         case 0x99: case 0x81: case 0x91:{
-            clockCycles += writeRAM(address, A);
+            clockCycles += WriteRam(address, A);
             sprintf(instruction, "STA");
             break;}
 
@@ -602,7 +602,7 @@ uint8_t CPU6502state::fetchAndExecute() {
 
         //SAX
         case 0x87: case 0x97: case 0x8F: case 0x83:{
-            clockCycles += writeRAM(address, A & X);
+            clockCycles += WriteRam(address, A & X);
             sprintf(instruction, "SAX");
             break;}
 
@@ -670,36 +670,32 @@ uint8_t CPU6502state::fetchAndExecute() {
     return clockCycles;
 }
 
-uint8_t CPU6502state::writeRAM(uint16_t address, uint8_t value) {
-    while(address >= 0x2008 && address < 0x4000) {
-        address -= 8;
+uint8_t CPU6502state::WriteRam(uint16_t address, uint8_t value) {
+    if(address <= 0x1FFF) {
+        ram[address%0x0800] = value;
     }
-
-    while(address >= 0x0800 && address < 0x2000) {
-        address -= 0x0800;
+    else if(address <= 0x3FFF) {
+        return ppu->writeRegisters(0x2000 + (address%8), value);
     }
-
-    // Deal with ppu
-    if (address >= 0x2000 && address <= 0x2007) {
-        return ppu->writeRegisters(address, value);
+    else if(address <= 0x4013 || address == 0x4015) {
+        // APU not emulated
     }
-
-    // OAM DMA
     else if(address == 0x4014) {
         for(int i=0; i<=0xFF; ++i) {
             ppu->writeSPRRAM(i, ram.at((value << 8)|i) );
         }
         return 513; //TODO: odd cpu cycles takes one extra cycle
     }
-
-    // Controller 1
-    else if(address == 0x4016) {
-        writeController(&NES_Controller, value);
+    else if(address <= 0x4017) {
+        if(address == 0x4016) {
+            writeController(&NES_Controller, value);
+        }
+        else if(address == 0x4017) {
+            // Controller 2 not emulated
+        }
     }
-
-    // Regular write
-    else if (address < 0x800) {
-        ram[address] = value;
+    else if (address >= 0x4020) {
+        // Write to cartridge not emulated
     }
 
     return 0;
@@ -714,11 +710,9 @@ uint8_t CPU6502state::ReadRam(uint16_t address) {
     }
     else if(address <= 0x4014) {
         // Open bus behaviour not emulated
-        return 0; 
     }
     else if(address == 0x4015) {
         // APU not emulated
-        return 0;
     }
     else if(address <= 0x4017) {
         if(address == 0x4016) {
@@ -726,10 +720,10 @@ uint8_t CPU6502state::ReadRam(uint16_t address) {
         }
         else if(address == 0x4017) {
             // Controller 2 not emulated
-            return 0;
         }
     }
     else if (address >= 0x4020) {
         return cartridge->ReadPrg(address);
     }
+    return 0;
 }
