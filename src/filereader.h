@@ -13,7 +13,7 @@ class Cartridge {
 
         std::array<uint8_t, 0x10000> fake_ram;
 
-        uint8_t readMemory(uint16_t address) {
+        uint8_t ReadPrg(uint16_t address) {
 
             if(address >= 0x8000) {
                 uint16_t idx = address - 0x8000;
@@ -32,6 +32,10 @@ class Cartridge {
             else {
                 return fake_ram.at(address);
             }
+        }
+
+        uint8_t ReadChr(uint16_t address) {
+            return chr_rom_banks.at(0).at(address);
         }
 };
 

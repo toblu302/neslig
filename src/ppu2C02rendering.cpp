@@ -37,7 +37,7 @@ void PPU2C02state::renderPixel(SDL_Surface* screenSurface) {
 
     //draw the pixel on the screen, depending on color and priority
     if( bg_color_index == 0 && sprite_color_index == 0 ) {
-        setPixelColor(screenSurface, dot, scanline, ppu_colors[vram[0x3F00]]);
+        setPixelColor(screenSurface, dot, scanline, ppu_colors[readVRAM(0x3F00)]);
     }
     else if( (sprite_color_index != 0 && bg_color_index == 0) ||
              (sprite_color_index != 0 && bg_color_index != 0 && (sprites[active_sprite_index].byte2 & (1<<5)) == 0) ) {
@@ -87,13 +87,13 @@ void PPU2C02state::renderPixel(SDL_Surface* screenSurface) {
             }
 
             int row = scanline-y;
-            uint8_t pattern_0 = vram[pattern_base + (pattern_index*16+row)];
-            uint8_t pattern_1 = vram[pattern_base + (pattern_index*16+row+8)];
+            uint8_t pattern_0 = readVRAM(pattern_base + (pattern_index*16+row));
+            uint8_t pattern_1 = readVRAM(pattern_base + (pattern_index*16+row+8));
 
             //flip y
             if( byte2 & (1 << 7) ) {
-                pattern_0 = vram[pattern_base + (pattern_index*16+(7-row))];
-                pattern_1 = vram[pattern_base + (pattern_index*16+(7-row)+8)];
+                pattern_0 = readVRAM(pattern_base + (pattern_index*16+(7-row)));
+                pattern_1 = readVRAM(pattern_base + (pattern_index*16+(7-row)+8));
             }
 
             //flip x, reverse the bits in the patterns

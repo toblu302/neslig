@@ -2,6 +2,7 @@
 #define PPU2C02_H_INCLUDED
 
 #include <SDL2/SDL.h>
+#include <functional>
 #include <stdint.h>
 #include <array>
 
@@ -68,10 +69,11 @@ class PPU2C02state {
         uint8_t ppudata;
         uint8_t oamdma;
 
-        CPU6502state* cpu;
-
         //initalize the PPU (ppu2C02.c)
         PPU2C02state();
+
+        void SetCartridge(std::shared_ptr<Cartridge> cartridge);
+        std::shared_ptr<Cartridge> cartridge;
 
         //Ticking (ppu2C02.c)
         uint8_t PPUcycle(SDL_Surface *screenSurface);
@@ -80,6 +82,8 @@ class PPU2C02state {
         void verinc();
 
         uint8_t rendering_enabled();
+
+        bool nmi;
 
         //Rendering stuff (ppu2C02rendering.c)
         void setPixelColor(SDL_Surface* screenSurface, int x, int y, uint32_t color);

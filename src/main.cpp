@@ -21,13 +21,8 @@ int main(int argc, char *argv[])
     printf("PRGROM: %d  CHRROM: %d  mapper: %d\n", cartridge->prg_rom_banks.size(), cartridge->chr_rom_banks.size(), cartridge->mapper);
     //assert(cartridge.mapper == 0);
 
-    std::shared_ptr<PPU2C02state> ppu = std::make_shared<PPU2C02state>();
-    std::cout << cartridge.get() << std::endl;
-    CPU6502state cpu(cartridge, ppu);
-    ppu->cpu = &cpu;
-
-    //Copy the ROM into the PPU's memory
-    std::copy(cartridge->chr_rom_banks[0].begin(), cartridge->chr_rom_banks[0].end(), ppu->vram.begin());
+    PPU2C02state ppu;
+    CPU6502state cpu(&ppu, cartridge);
 
     //initalize the Controller
     initController(&NES_Controller);
@@ -67,7 +62,7 @@ int main(int argc, char *argv[])
             uint8_t loop = cycles*3;
             while( loop != 0 )
             {
-                frame_finished |= ppu->PPUcycle(screenSurface);
+                frame_finished |= ppu.PPUcycle(screenSurface);
                 loop -= 1;
             }
         }

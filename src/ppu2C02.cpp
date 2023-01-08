@@ -12,11 +12,15 @@ PPU2C02state::PPU2C02state() {
     oam.fill(0xff);
 }
 
+void PPU2C02state::SetCartridge(std::shared_ptr<Cartridge> cartridge) {
+    this->cartridge = cartridge;
+}
+
 uint8_t PPU2C02state::PPUcycle(SDL_Surface *screenSurface) {
 
     if( nmi_output && nmi_occurred ) {
         nmi_occurred = 0;
-        cpu->NMI();
+        nmi = true;
     }
 
     //update cycles/scanlines
@@ -94,7 +98,7 @@ void PPU2C02state::handleVisibleScanline() {
     if( ppuctrl & (1 << 4) ) {
         pattern_base = 0x1000;
     }
-    uint16_t pattern_index = vram[nametable_base];
+    uint16_t pattern_index = readVRAM(nametable_base);
     uint8_t row = ((VRAM_address&0x7000) >> 12);
 
     if( dot < 256 || (dot > 320 && dot <= 336) ) {
@@ -117,10 +121,10 @@ void PPU2C02state::handleVisibleScanline() {
                 fetchAttribute();
                 break;
             case 5:
-                bitmap_shift_0_latch = vram[pattern_base + pattern_index*16+row];
+                bitmap_shift_0_latch = readVRAM(pattern_base + pattern_index*16+row);
                 break;
             case 7:
-                bitmap_shift_1_latch = vram[pattern_base + pattern_index*16+row+8];
+                bitmap_shift_1_latch = readVRAM(pattern_base + pattern_index*16+row+8);
                 break;
         }
 
@@ -276,15 +280,6 @@ uint8_t PPU2C02state::writeRegisters(uint16_t address, uint8_t value) {
         }
     }
 
-    //OAMDMA
-    else if(address == 0x4014) {
-        int i;
-        for(i=0; i<=0xFF; ++i) {
-            writeSPRRAM(i, cpu->ram[(value << 8)|i] );
-        }
-        return 513 + odd_frame; //I think?
-    }
-
     return 0;
 }
 
@@ -304,7 +299,13 @@ uint8_t PPU2C02state::readVRAM(uint16_t address) {
         address -= 0x10;
     }
     address &= 0x3FFF;
-    return this->vram[address];
+    switch(address) {
+        case 0x0000 ... 0x1FFF:
+            return cartridge->ReadChr(address);
+        default:
+            return vram[address];
+    }
+
 }
 
 void PPU2C02state::writeSPRRAM(uint8_t address, uint8_t value) {

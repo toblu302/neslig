@@ -100,7 +100,7 @@ static const int pageBreakingLookup[256] =
 // class to store the state of the processor
 class CPU6502state {
     public:
-        CPU6502state(std::shared_ptr<Cartridge> cartridge, std::shared_ptr<PPU2C02state> ppu);
+        CPU6502state(PPU2C02state *ppu, std::shared_ptr<Cartridge> cartridge);
 
         std::array<uint8_t, 0x800> ram;
         uint16_t PC; //program counter (16 bits)
@@ -114,7 +114,7 @@ class CPU6502state {
         uint8_t writeRAM(uint16_t address, uint8_t value);
 
         std::shared_ptr<Cartridge> cartridge;
-        std::shared_ptr<PPU2C02state> ppu;
+        PPU2C02state* ppu;
 
         //fetches and executes an opcode
         int updateZN(uint8_t variable);

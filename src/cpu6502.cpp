@@ -5,7 +5,7 @@
 #include "cpu6502.h"
 #include "ppu2C02.h"
 
-CPU6502state::CPU6502state(std::shared_ptr<Cartridge> cartridge, std::shared_ptr<PPU2C02state> ppu) {
+CPU6502state::CPU6502state(PPU2C02state* ppu, std::shared_ptr<Cartridge> cartridge) {
     this->cartridge = cartridge;
 
     PC = 0xC000;
@@ -19,6 +19,7 @@ CPU6502state::CPU6502state(std::shared_ptr<Cartridge> cartridge, std::shared_ptr
     uint8_t low = readRAM(0xFFFC);
     PC = (high << 8) | low;
     this->ppu = ppu;
+    this->ppu->SetCartridge(cartridge);
 
     //printf("pc: %X %x %x\n", PC, high, low);
 }
@@ -128,6 +129,11 @@ uint8_t CPU6502state::fetchAndExecute() {
     char c3[3] = "  ";
     char instruction[4] = "   ";
     char after[27] = "                          ";
+
+    if(ppu->nmi) {
+        NMI();
+        ppu->nmi = false;
+    }
 
     uint8_t opcode = readRAM( PC++ );
     uint8_t clockCycles = clockCycleLookup[opcode];
@@ -674,8 +680,16 @@ uint8_t CPU6502state::writeRAM(uint16_t address, uint8_t value) {
     }
 
     // Deal with ppu
-    if ((address >= 0x2000 && address <= 0x2007) || address == 0x4014) {
-        ppu->writeRegisters(address, value);
+    if (address >= 0x2000 && address <= 0x2007) {
+        return ppu->writeRegisters(address, value);
+    }
+
+    // OAM DMA
+    else if(address == 0x4014) {
+        for(int i=0; i<=0xFF; ++i) {
+            ppu->writeSPRRAM(i, ram.at((value << 8)|i) );
+        }
+        return 513; //TODO: odd cpu cycles takes one extra cycle
     }
 
     // Controller 1
@@ -702,7 +716,7 @@ uint8_t CPU6502state::readRAM(uint16_t address) {
     uint8_t retVal = 0; 
 
     // PPU registers
-    if((address >= 0x2000 && address <= 0x2007) || address == 0x4014) {
+    if(address >= 0x2000 && address <= 0x2007) {
         return ppu->readRegisters(address);
     }
 
@@ -718,7 +732,7 @@ uint8_t CPU6502state::readRAM(uint16_t address) {
 
     // Cartridge
     else if (address >= 0x4020) {
-        retVal = cartridge->readMemory(address);
+        retVal = cartridge->ReadPrg(address);
     }
 
     return retVal;
