@@ -110,7 +110,7 @@ class CPU6502state {
         uint8_t Y; // (8 bits)
         uint8_t P; //status register (8 bits) NV_BDIZC
 
-        uint8_t readRAM(uint16_t address);
+        uint8_t ReadRam(uint16_t address);
         uint8_t writeRAM(uint16_t address, uint8_t value);
 
         std::shared_ptr<Cartridge> cartridge;

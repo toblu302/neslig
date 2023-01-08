@@ -8,68 +8,68 @@ uint16_t CPU6502state::addressImmediate() {
 }
 
 uint16_t CPU6502state::addressZeroPage() {
-    return readRAM(PC++);
+    return ReadRam(PC++);
 }
 
 uint16_t CPU6502state::addressZeroPageX() {
-    return (readRAM(PC++) + X) & 0xFF;
+    return (ReadRam(PC++) + X) & 0xFF;
 }
 
 uint16_t CPU6502state::addressZeroPageY() {
-    return (readRAM( PC++ )+ Y) & 0xFF;
+    return (ReadRam( PC++ )+ Y) & 0xFF;
 }
 
 //returns an "8 bit" offset
 int8_t CPU6502state::addressRelative() {
-    return readRAM( PC++ );
+    return ReadRam( PC++ );
 }
 
 uint16_t CPU6502state::addressAbsolute() {
-    uint8_t low = readRAM(PC++);
-    uint8_t high = readRAM(PC++);
+    uint8_t low = ReadRam(PC++);
+    uint8_t high = ReadRam(PC++);
     return (high << 8) | low;
 }
 
 uint16_t CPU6502state::addressAbsoluteX() {
-    uint8_t low = readRAM(PC++);
-    uint8_t high = readRAM(PC++);
+    uint8_t low = ReadRam(PC++);
+    uint8_t high = ReadRam(PC++);
     return ( ((high << 8) | low) + X);
 }
 
 uint16_t CPU6502state::addressAbsoluteY() {
-    uint8_t low = readRAM(PC++);
-    uint8_t high = readRAM(PC++);
+    uint8_t low = ReadRam(PC++);
+    uint8_t high = ReadRam(PC++);
     return ( ((high << 8) | low) + Y);
 }
 
 uint16_t CPU6502state::addressIndirect() {
-    uint8_t low = readRAM(PC++);
-    uint8_t high = readRAM(PC++);
+    uint8_t low = ReadRam(PC++);
+    uint8_t high = ReadRam(PC++);
     uint16_t target = (high << 8) | low;
 
-    uint8_t targetLow = readRAM(target);
-    uint8_t targetHigh = readRAM(target+1);
+    uint8_t targetLow = ReadRam(target);
+    uint8_t targetHigh = ReadRam(target+1);
     if( ((((high << 8) | low) + 1) & 0xFF) == 0) {
-        targetHigh = readRAM( (target+1) - 0x100 );
+        targetHigh = ReadRam( (target+1) - 0x100 );
     }
 
     return (targetHigh << 8) | targetLow;
 }
 
 uint16_t CPU6502state::addressIndexedIndirect() {
-    int address = readRAM(PC++);
+    int address = ReadRam(PC++);
 
-    int low = readRAM((address+X)&0xFF);
-    int high = readRAM((address+X+1)&0xFF);
+    int low = ReadRam((address+X)&0xFF);
+    int high = ReadRam((address+X+1)&0xFF);
 
     return (high << 8) | low;
 }
 
 uint16_t CPU6502state::addressIndirectIndexed() {
-    uint32_t address = readRAM(PC++);
+    uint32_t address = ReadRam(PC++);
 
-    uint32_t low = readRAM(address++);
-    uint32_t high = readRAM( address & 0xFF );
+    uint32_t low = ReadRam(address++);
+    uint32_t high = ReadRam( address & 0xFF );
     return (((high << 8) | low) + Y);
 }
 
@@ -183,36 +183,36 @@ uint8_t CPU6502state::ROL(uint8_t value) {
 }
 
 void CPU6502state::DEC(uint16_t address) {
-    writeRAM(address, readRAM(address)-1);
-    updateZN(readRAM(address));
+    writeRAM(address, ReadRam(address)-1);
+    updateZN(ReadRam(address));
 }
 
 void CPU6502state::INC(uint16_t address) {
-    writeRAM(address, readRAM(address)+1);
-    updateZN(readRAM(address));
+    writeRAM(address, ReadRam(address)+1);
+    updateZN(ReadRam(address));
 }
 
 void CPU6502state::SLO(uint16_t address) {
-    writeRAM(address, ASL(readRAM(address)));
-    A |= readRAM(address);
+    writeRAM(address, ASL(ReadRam(address)));
+    A |= ReadRam(address);
     updateZN(A);
 }
 
 void CPU6502state::RLA(uint16_t address) {
-    writeRAM(address, ROL(readRAM(address)));
-    A &= readRAM(address);
+    writeRAM(address, ROL(ReadRam(address)));
+    A &= ReadRam(address);
     updateZN(A);
 }
 
 void CPU6502state::RRA(uint16_t address) {
-    writeRAM(address, ROR(readRAM(address)));
-    ADC(readRAM(address));
+    writeRAM(address, ROR(ReadRam(address)));
+    ADC(ReadRam(address));
 }
 
 void CPU6502state::SRE(uint16_t address) {
-    writeRAM(address, LSR(readRAM(address)));
+    writeRAM(address, LSR(ReadRam(address)));
 
-    A ^= readRAM(address);
+    A ^= ReadRam(address);
     updateZN(A);
 }
 

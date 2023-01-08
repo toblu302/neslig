@@ -15,8 +15,8 @@ CPU6502state::CPU6502state(PPU2C02state* ppu, std::shared_ptr<Cartridge> cartrid
     P = 0x24;
     A = 0;
 
-    uint8_t high = readRAM(0xFFFD);
-    uint8_t low = readRAM(0xFFFC);
+    uint8_t high = ReadRam(0xFFFD);
+    uint8_t low = ReadRam(0xFFFC);
     PC = (high << 8) | low;
     this->ppu = ppu;
     this->ppu->SetCartridge(cartridge);
@@ -54,23 +54,23 @@ uint8_t CPU6502state::isPageBreaking(uint8_t opcode) {
     enum addressingMode mode = addressModeLookup[opcode];
     switch(mode) {
         case ABSX:
-            low = readRAM(PC);
-            high = readRAM(PC+1);
+            low = ReadRam(PC);
+            high = ReadRam(PC+1);
             if ( ((((high << 8) | low) + X) & 0xFF00) != (((high << 8) | low) & 0xFF00) ) {
                 return 1;
             }
             return 0;
         case ABSY:
-            low = readRAM(PC);
-            high = readRAM(PC+1);
+            low = ReadRam(PC);
+            high = ReadRam(PC+1);
             if ( ((((high << 8) | low) + Y) & 0xFF00) != (((high << 8) | low) & 0xFF00) ) {
                 return 1;
             }
             return 0;
         case INDINX:
-            address = readRAM(PC);
-            low = readRAM(address++);
-            high = readRAM( address & 0xFF );
+            address = ReadRam(PC);
+            low = ReadRam(address++);
+            high = ReadRam( address & 0xFF );
 
             if( ((((high << 8) | low) + Y) &0xFF00) != (((high << 8) | low) & 0xFF00) ) {
                 return 1;
@@ -94,15 +94,15 @@ void CPU6502state::pushStack(int value) {
 uint8_t CPU6502state::popStack() {
     SP += 1;
     SP &= 0xFF;
-    return readRAM( (0x100 + SP)&0x1FF );
+    return ReadRam( (0x100 + SP)&0x1FF );
 }
 
 /******************
 * interrupts
 ******************/
 void CPU6502state::NMI() {
-    uint8_t low = readRAM(0xFFFA);
-    uint8_t high = readRAM(0xFFFB);
+    uint8_t low = ReadRam(0xFFFA);
+    uint8_t high = ReadRam(0xFFFB);
     uint16_t address = (high << 8) | low;
 
     pushStack(PC >> 8);
@@ -135,7 +135,7 @@ uint8_t CPU6502state::fetchAndExecute() {
         ppu->nmi = false;
     }
 
-    uint8_t opcode = readRAM( PC++ );
+    uint8_t opcode = ReadRam( PC++ );
     uint8_t clockCycles = clockCycleLookup[opcode];
     if(isPageBreaking(opcode)) {
         uint8_t add = pageBreakingLookup[opcode];
@@ -150,7 +150,7 @@ uint8_t CPU6502state::fetchAndExecute() {
         //LDY
         case 0xA0: case 0xA4: case 0xB4: case 0xAC:
         case 0xBC:{
-            Y = readRAM(address);
+            Y = ReadRam(address);
             updateZN(Y);
             sprintf(instruction, "LDY");
             break;}
@@ -164,7 +164,7 @@ uint8_t CPU6502state::fetchAndExecute() {
         //LDX
         case 0xA2: case 0xA6: case 0xB6: case 0xAE:
         case 0xBE:{
-            X = readRAM(address);
+            X = ReadRam(address);
             updateZN(X);
             sprintf(instruction, "LDX");
             break;}
@@ -205,7 +205,7 @@ uint8_t CPU6502state::fetchAndExecute() {
         //LDA Immediate
         case 0xA9: case 0xA5: case 0xB5: case 0xAD: case 0xBD: case 0xB9: case 0xA1:
         case 0xB1:{
-            A = readRAM(address);
+            A = ReadRam(address);
             updateZN(A);
             sprintf(instruction, "LDA");
             break;}
@@ -227,7 +227,7 @@ uint8_t CPU6502state::fetchAndExecute() {
         //BIT
         case 0x24:
         case 0x2C:{
-            int inMemory = readRAM(address);
+            int inMemory = ReadRam(address);
             updateZN(inMemory&A);
             P &= ~(1<<V);
             if(inMemory & (1 << 6)) P |= (1<<V);
@@ -270,7 +270,7 @@ uint8_t CPU6502state::fetchAndExecute() {
         //AND
         case 0x29: case 0x25: case 0x35: case 0x2D:
         case 0x3D: case 0x39: case 0x21: case 0x31:{
-            A &= readRAM(address);
+            A &= ReadRam(address);
             updateZN(A);
             sprintf(instruction, "AND");
             break;}
@@ -278,7 +278,7 @@ uint8_t CPU6502state::fetchAndExecute() {
         //CMP
         case 0xC9: case 0xC5: case 0xD5: case 0xCD:
         case 0xDD: case 0xD9: case 0xC1: case 0xD1:{
-            int comparator = readRAM(address);
+            int comparator = ReadRam(address);
             updateCCompare(A,comparator);
             updateZN(A-comparator);
             sprintf(instruction, "CMP");
@@ -287,7 +287,7 @@ uint8_t CPU6502state::fetchAndExecute() {
         //ORA
         case 0x09: case 0x05: case 0x15: case 0x0D: case 0x1D:
         case 0x19: case 0x01: case 0x11:{
-            A |= readRAM(address);
+            A |= ReadRam(address);
             updateZN(A);
             sprintf(instruction, "ORA");
             break;}
@@ -295,7 +295,7 @@ uint8_t CPU6502state::fetchAndExecute() {
         //EOR
         case 0x49: case 0x45: case 0x55: case 0x4D: case 0x5D:
         case 0x59: case 0x41: case 0x51:{
-            A ^= readRAM(address);
+            A ^= ReadRam(address);
             updateZN(A);
             sprintf(instruction, "EOR");
             break;}
@@ -303,21 +303,21 @@ uint8_t CPU6502state::fetchAndExecute() {
         //ADC
         case 0x69: case 0x65: case 0x75: case 0x6D: case 0x7D:
         case 0x79: case 0x61: case 0x71:{
-            ADC(readRAM(address) );
+            ADC(ReadRam(address) );
             sprintf(instruction, "ADC");
             break;}
 
         //SBC Immediate
         case 0xEB: case 0xE9: case 0xE5: case 0xF5: case 0xED:
         case 0xFD: case 0xF9: case 0xE1: case 0xF1:{
-            SBC(readRAM(address));
+            SBC(ReadRam(address));
             sprintf(instruction, "SBC");
             break;}
 
         //CPY
         case 0xC0: case 0xC4:
         case 0xCC:{
-            int comparator = readRAM(address);
+            int comparator = ReadRam(address);
             updateCCompare(Y,comparator);
             updateZN(Y-comparator);
             sprintf(instruction, "CPY");
@@ -326,7 +326,7 @@ uint8_t CPU6502state::fetchAndExecute() {
         //CPX
         case 0xE0: case 0xE4:
         case 0xEC:{
-            int comparator = readRAM(address);
+            int comparator = ReadRam(address);
             updateCCompare(X,comparator);
             updateZN(X-comparator);
             sprintf(instruction, "CPX");
@@ -414,7 +414,7 @@ uint8_t CPU6502state::fetchAndExecute() {
         //ASL
         case 0x1E: case 0x0E: case 0x16:
         case 0x06:{
-            clockCycles += writeRAM(address, ASL(readRAM(address)));
+            clockCycles += writeRAM(address, ASL(ReadRam(address)));
             sprintf(instruction, "ASL");
             break;}
 
@@ -427,7 +427,7 @@ uint8_t CPU6502state::fetchAndExecute() {
         //LSR
         case 0x46: case 0x56: case 0x4E:
         case 0x5E:{
-            clockCycles += writeRAM(address, LSR(readRAM(address)));
+            clockCycles += writeRAM(address, LSR(ReadRam(address)));
             sprintf(instruction, "LSR");
             break;}
 
@@ -440,7 +440,7 @@ uint8_t CPU6502state::fetchAndExecute() {
         //ROR
         case 0x66: case 0x76: case 0x6E:
         case 0x7E:{
-            clockCycles += writeRAM(address, ROR(readRAM(address)));
+            clockCycles += writeRAM(address, ROR(ReadRam(address)));
             sprintf(instruction, "ROR");
             break;}
 
@@ -453,7 +453,7 @@ uint8_t CPU6502state::fetchAndExecute() {
         //ROL
         case 0x26: case 0x2E: case 0x3E:
         case 0x36:{
-            clockCycles += writeRAM(address, ROL(readRAM(address)));
+            clockCycles += writeRAM(address, ROL(ReadRam(address)));
             sprintf(instruction, "ROL");
             break;}
 
@@ -580,8 +580,8 @@ uint8_t CPU6502state::fetchAndExecute() {
             pushStack(((PC+1) & 0xFF00) >> 8);
             pushStack((PC+1) & 0xFF);
             pushStack(P | (1<<UNDEFINED) | (1<<B));
-            uint8_t low = readRAM(0xFFFE);
-            uint8_t high = readRAM(0xFFFF);
+            uint8_t low = ReadRam(0xFFFE);
+            uint8_t high = ReadRam(0xFFFF);
             PC = (high << 8) | low;
             P |= (1<<B);
             sprintf(instruction, "BRK");
@@ -594,7 +594,7 @@ uint8_t CPU6502state::fetchAndExecute() {
         //LAX (LDA -> TAX)
         case 0xA7: case 0xB7: case 0xAF: case 0xBF:
         case 0xA3: case 0xB3:{
-            A = readRAM(address);
+            A = ReadRam(address);
             X = A;
             updateZN(X);
             sprintf(instruction, "LAX");
@@ -610,7 +610,7 @@ uint8_t CPU6502state::fetchAndExecute() {
         case 0xC7: case 0xD7: case 0xCF: case 0xDF:
         case 0xDB: case 0xC3: case 0xD3:{
             DEC(address);
-            uint8_t comparator = readRAM(address);
+            uint8_t comparator = ReadRam(address);
             updateCCompare(A,comparator);
             updateZN(A-comparator);
             sprintf(instruction, "DCP");
@@ -620,7 +620,7 @@ uint8_t CPU6502state::fetchAndExecute() {
         case 0xE7: case 0xF7: case 0xEF: case 0xFF:
         case 0xFB: case 0xE3: case 0xF3:{
             INC(address);
-            SBC(readRAM(address));
+            SBC(ReadRam(address));
             sprintf(instruction, "ISB");
             break;}
 
@@ -705,35 +705,31 @@ uint8_t CPU6502state::writeRAM(uint16_t address, uint8_t value) {
     return 0;
 }
 
-uint8_t CPU6502state::readRAM(uint16_t address) {
-    while(address >= 0x2008 && address < 0x4000) {
-        address -= 8; //handle mirroring
+uint8_t CPU6502state::ReadRam(uint16_t address) {
+    if(address <= 0x1FFF) {
+        return ram[address%0x0800];
     }
-    while(address >= 0x0800 && address < 0x2000) {
-        address -= 0x0800; //handle mirroring
+    else if(address <= 0x3FFF) {
+        return ppu->readRegisters(0x2000 + (address%8));
     }
-
-    uint8_t retVal = 0; 
-
-    // PPU registers
-    if(address >= 0x2000 && address <= 0x2007) {
-        return ppu->readRegisters(address);
+    else if(address <= 0x4014) {
+        // Open bus behaviour not emulated
+        return 0; 
     }
-
-    // Controller 1
-    else if(address == 0x4016) {
-        retVal = getNextButton(&NES_Controller);
+    else if(address == 0x4015) {
+        // APU not emulated
+        return 0;
     }
-
-    // Regular read
-    else if (address < 0x800) {
-        retVal = this->ram[address];
+    else if(address <= 0x4017) {
+        if(address == 0x4016) {
+            return getNextButton(&NES_Controller);
+        }
+        else if(address == 0x4017) {
+            // Controller 2 not emulated
+            return 0;
+        }
     }
-
-    // Cartridge
     else if (address >= 0x4020) {
-        retVal = cartridge->ReadPrg(address);
+        return cartridge->ReadPrg(address);
     }
-
-    return retVal;
 }
