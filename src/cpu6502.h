@@ -11,15 +11,6 @@
 
 class PPU2C02state;
 
-#define N 7
-#define V 6
-#define UNDEFINED 5
-#define B 4
-#define D 3
-#define I 2
-#define Z 1
-#define C 0
-
 //all the different addressing modes on the 6502
 enum addressingMode {
     NONE, //Undefined
@@ -97,6 +88,10 @@ static const int pageBreakingLookup[256] =
     0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 1, 1, 0, 0 //F0 -> FF
  };
 
+ enum Flags {
+    N=7, V=6, UNDEFINED=5, B=4, D=3, I=2, Z=1, C=0
+ };
+
 // class to store the state of the processor
 class CPU6502state {
     public:
@@ -130,7 +125,7 @@ class CPU6502state {
         uint16_t addressZeroPage();
         uint16_t addressZeroPageX();
         uint16_t addressZeroPageY();
-        int8_t addressRelative();
+        uint16_t addressRelative();
         uint16_t addressAbsolute();
         uint16_t addressAbsoluteX();
         uint16_t addressAbsoluteY();
@@ -144,20 +139,44 @@ class CPU6502state {
         void pushStack(int value);
         uint8_t popStack();
 
-        //CPU instructions (implemented in cpu6502instructions.c)
-        void ADC(uint8_t argument);
-        void SBC(uint8_t argument);
-        uint8_t LSR(uint8_t argument);
-        uint8_t ASL(uint8_t argument);
-        uint8_t ROR(uint8_t argument);
-        uint8_t ROL(uint8_t argument);
-        void DEC(uint16_t argument);
-        void INC(uint16_t argument);
-        void SLO(uint16_t argument);
-        void RLA(uint16_t argument);
-        void RRA(uint16_t argument);
-        void SRE(uint16_t argument);
-        uint8_t BXX(uint16_t address, int flag, bool shouldBeSet);
+    private:
+        // Instructions (implemented in cpu6502instructions.c)
+        void ADC(const uint16_t &address);
+        void AND(const uint16_t &address);
+        void ASL(const uint16_t &address);
+        void Branch(const uint16_t &address, const Flags &flag, bool shouldBeSet);
+        void BRK();
+        void BIT(const uint16_t &address);
+        void CL(const Flags &flag); // CLC, CLD, CLI, CLV
+        void Compare(uint8_t &reg, const uint16_t &address);
+        void DCP(const uint16_t &address);
+        void DEC(const uint16_t &address);
+        void EOR(const uint16_t &address);
+        void INC(const uint16_t &address);
+        void ISB(const uint16_t &address);
+        void JMP(const uint16_t &address);
+        void JSR(const uint16_t &address);
+        void LAX(const uint16_t &address);
+        void LSR(const uint16_t &address);
+        void LD(uint8_t &reg, const uint16_t &address); // LDA, LDX, LDY
+        void ORA(const uint16_t &address);
+        void RLA(const uint16_t &address);
+        void ROL(const uint16_t &address);
+        void ROR(const uint16_t &address);
+        void RRA(const uint16_t &address);
+        void RTI(); 
+        void RTS();
+        void SBC(const uint16_t &address);
+        void SE(const Flags &flag); // SEC, SED, SEI
+        void SLO(const uint16_t &address);
+        void SRE(const uint16_t &address);
+        void ST(uint8_t &reg, const uint16_t &address); // STA, STX, STY
+
+        // Utils (implemented in cpu6502instructions.c)
+        uint8_t RightShift(const uint8_t &argument);
+        uint8_t LeftShift(const uint8_t &argument);
+        uint8_t RightRotate(const uint8_t &argument);
+        uint8_t LeftRotate(const uint8_t &argument);
 };
 
 #endif // CPU6502_H_INCLUDED
