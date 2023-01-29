@@ -12,10 +12,12 @@ uint16_t CPU6502state::addressZeroPage() {
 }
 
 uint16_t CPU6502state::addressZeroPageX() {
+    Tick();
     return (ReadRam(PC++) + X) & 0xFF;
 }
 
 uint16_t CPU6502state::addressZeroPageY() {
+    Tick();
     return (ReadRam( PC++ )+ Y) & 0xFF;
 }
 
@@ -34,13 +36,21 @@ uint16_t CPU6502state::addressAbsolute() {
 uint16_t CPU6502state::addressAbsoluteX() {
     uint8_t low = ReadRam(PC++);
     uint8_t high = ReadRam(PC++);
-    return ( ((high << 8) | low) + X);
+    uint16_t new_address = ((high << 8) | low) + X;
+    if(CrossedPage(new_address, X)) {
+        Tick();
+    }
+    return new_address;
 }
 
 uint16_t CPU6502state::addressAbsoluteY() {
     uint8_t low = ReadRam(PC++);
     uint8_t high = ReadRam(PC++);
-    return ( ((high << 8) | low) + Y);
+    uint16_t new_address = ((high << 8) | low) + Y;
+    if(CrossedPage(new_address, Y)) {
+        Tick();
+    }
+    return new_address;
 }
 
 uint16_t CPU6502state::addressIndirect() {
@@ -49,15 +59,18 @@ uint16_t CPU6502state::addressIndirect() {
     uint16_t target = (high << 8) | low;
 
     uint8_t targetLow = ReadRam(target);
-    uint8_t targetHigh = ReadRam(target+1);
+    uint16_t next_target = target+1;
     if( ((((high << 8) | low) + 1) & 0xFF) == 0) {
-        targetHigh = ReadRam( (target+1) - 0x100 );
+        next_target -= 0x100;
     }
+    uint8_t targetHigh = ReadRam(next_target);
 
     return (targetHigh << 8) | targetLow;
 }
 
 uint16_t CPU6502state::addressIndexedIndirect() {
+    Tick();
+
     int address = ReadRam(PC++);
 
     int low = ReadRam((address+X)&0xFF);
@@ -71,41 +84,11 @@ uint16_t CPU6502state::addressIndirectIndexed() {
 
     uint32_t low = ReadRam(address++);
     uint32_t high = ReadRam( address & 0xFF );
-    return (((high << 8) | low) + Y);
-}
-
-
-uint16_t CPU6502state::getAddress(uint8_t opcode) {
-    enum addressingMode mode = addressModeLookup[opcode];
-    switch(mode) {
-        case IMM:
-            return addressImmediate();
-        case ZER:
-            return addressZeroPage();
-        case ZERX:
-            return addressZeroPageX();
-        case ZERY:
-            return addressZeroPageY();
-        case REL:
-            return PC + addressRelative() + 1;
-        case ABS:
-            return addressAbsolute();
-        case ABSX:
-            return addressAbsoluteX();
-        case ABSY:
-            return addressAbsoluteY();
-        case IND:
-            return addressIndirect();
-        case INXIND:
-            return addressIndexedIndirect();
-        case INDINX:
-            return addressIndirectIndexed();
-        case NONE:
-        case IMP:
-        case ACC:
-            return 0;
+    uint16_t new_address = (((high << 8) | low) + Y);
+    if(CrossedPage(new_address, Y)) {
+        Tick();
     }
-    return 0;
+    return new_address;
 }
 
 /******************
@@ -133,6 +116,7 @@ void CPU6502state::AND(const uint16_t &address) {
 
 void CPU6502state::ASL(const uint16_t &address) {
     uint8_t value = ReadRam(address);
+    Tick();
     uint8_t rotatedValue = LeftShift(value);
     WriteRam(address, rotatedValue);
 }
@@ -149,6 +133,10 @@ void CPU6502state::BIT(const uint16_t &address) {
 void CPU6502state::Branch(const uint16_t &address, const Flags &flag, bool shouldBeSet) {
     bool isSet = ((P & (1<<flag)) != 0x00);
     if( isSet == shouldBeSet ) {
+        Tick();
+        if((PC&0xFF00) != (address&0xFF00)) {
+            Tick();
+        }
         PC = address;
     }
 }
@@ -165,6 +153,7 @@ void CPU6502state::BRK() {
 
 void CPU6502state::CL(const Flags &flag) {
     P &= ~(1 << flag);
+    Tick();
 }
 
 void CPU6502state::Compare(uint8_t &reg, const uint16_t &address) {
@@ -174,7 +163,7 @@ void CPU6502state::Compare(uint8_t &reg, const uint16_t &address) {
 }
 
 void CPU6502state::DCP(const uint16_t &address) {
-    DEC(address);
+    WriteRam(address, ReadRam(address)-1);
     uint8_t comparator = ReadRam(address);
     updateCCompare(A, comparator);
     updateZN(A-comparator);
@@ -196,7 +185,7 @@ void CPU6502state::INC(const uint16_t &address) {
 }
 
 void CPU6502state::ISB(const uint16_t &address) {
-    INC(address);
+    WriteRam(address, ReadRam(address)+1);
     SBC(address);
 }
 
@@ -205,6 +194,7 @@ void CPU6502state::JMP(const uint16_t &address) {
 }
 
 void CPU6502state::JSR(const uint16_t &address) {
+    Tick();
     pushStack(((PC-1) & 0xFF00) >> 8);
     pushStack((PC-1) & 0xFF);
 
@@ -219,6 +209,7 @@ void CPU6502state::LAX(const uint16_t &address) {
 
 void CPU6502state::LSR(const uint16_t &address) {
     uint8_t value = ReadRam(address);
+    Tick();
     uint8_t rotatedValue = RightShift(value);
     WriteRam(address, rotatedValue);
 }
@@ -241,12 +232,14 @@ void CPU6502state::RLA(const uint16_t &address) {
 
 void CPU6502state::ROL(const uint16_t &address) {
     uint8_t value = ReadRam(address);
+    Tick();
     uint8_t rotatedValue = LeftRotate(value);
     WriteRam(address, rotatedValue);
 }
 
 void CPU6502state::ROR(const uint16_t &address) {
     uint8_t value = ReadRam(address);
+    Tick();
     uint8_t rotatedValue = RightRotate(value);
     WriteRam(address, rotatedValue);
 }
@@ -257,6 +250,8 @@ void CPU6502state::RRA(const uint16_t &address) {
 }
 
 void CPU6502state::RTI() {
+    Tick();
+    Tick();
     P = (popStack() & ~(1<<B)) | (1<<UNDEFINED);
     int low = popStack();
     int high = popStack();
@@ -264,9 +259,12 @@ void CPU6502state::RTI() {
 }
 
 void CPU6502state::RTS() {
+    Tick();
+    Tick();
     uint8_t low = popStack();
     uint8_t high = popStack();
     PC = ((high << 8) | low)+1;
+    Tick();
 }
 
 void CPU6502state::SBC(const uint16_t &address) {
@@ -286,6 +284,7 @@ void CPU6502state::SBC(const uint16_t &address) {
 
 void CPU6502state::SE(const Flags &flag) {
     P |= (1 << flag);
+    Tick();
 }
 
 void CPU6502state::SLO(const uint16_t &address) {
@@ -361,4 +360,8 @@ uint8_t CPU6502state::LeftRotate(const uint8_t &value) {
     }
     updateZN(returnValue);
     return returnValue;
+}
+
+bool CPU6502state::CrossedPage(const uint16_t &address, const uint8_t &increment) {
+    return ((address-increment)&0xFF00) != (address&0xFF00);
 }

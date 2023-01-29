@@ -20,6 +20,7 @@ CPU6502state::CPU6502state(PPU2C02state* ppu, std::shared_ptr<Cartridge> cartrid
     PC = (high << 8) | low;
     this->ppu = ppu;
     this->ppu->SetCartridge(cartridge);
+    this->clock_cycle = 6;
 
     //printf("pc: %X %x %x\n", PC, high, low);
 }
@@ -48,38 +49,8 @@ int CPU6502state::updateCCompare(int var1, int var2) {
     return 0;
 }
 
-//checks if running an opcode in a given state would cross a page boundary
-uint8_t CPU6502state::isPageBreaking(uint8_t opcode) {
-    uint32_t address, low, high;
-    enum addressingMode mode = addressModeLookup[opcode];
-    switch(mode) {
-        case ABSX:
-            low = ReadRam(PC);
-            high = ReadRam(PC+1);
-            if ( ((((high << 8) | low) + X) & 0xFF00) != (((high << 8) | low) & 0xFF00) ) {
-                return 1;
-            }
-            return 0;
-        case ABSY:
-            low = ReadRam(PC);
-            high = ReadRam(PC+1);
-            if ( ((((high << 8) | low) + Y) & 0xFF00) != (((high << 8) | low) & 0xFF00) ) {
-                return 1;
-            }
-            return 0;
-        case INDINX:
-            address = ReadRam(PC);
-            low = ReadRam(address++);
-            high = ReadRam( address & 0xFF );
-
-            if( ((((high << 8) | low) + Y) &0xFF00) != (((high << 8) | low) & 0xFF00) ) {
-                return 1;
-            }
-
-            return 0;
-        default:
-            return 0;
-    }
+void CPU6502state::Tick() {
+    clock_cycle += 1;
 }
 
 /******************
@@ -135,17 +106,10 @@ uint8_t CPU6502state::fetchAndExecute() {
         ppu->nmi = false;
     }
 
-    uint8_t opcode = ReadRam( PC++ );
-    uint8_t clockCycles = clockCycleLookup[opcode];
-    if(isPageBreaking(opcode)) {
-        uint8_t add = pageBreakingLookup[opcode];
-        clockCycles += add;
-    }
-
-    uint16_t address = 0; //getAddress(opcode) ;
-
-
     std::string op_str = "";
+
+    uint8_t opcode = ReadRam( PC++ );
+    uint clock_cycles_before = this->clock_cycle;
     switch(opcode) {
         /***********************
         ** REGISTER OPERATIONS
@@ -185,10 +149,10 @@ uint8_t CPU6502state::fetchAndExecute() {
         case 0x85: op_str="STA"; ST(A, addressZeroPage()); break;
         case 0x95: op_str="STA"; ST(A, addressZeroPageX()); break;
         case 0x8D: op_str="STA"; ST(A, addressAbsolute()); break;
-        case 0x9D: op_str="STA"; ST(A, addressAbsoluteX()); break;
-        case 0x99: op_str="STA"; ST(A, addressAbsoluteY()); break;
+        case 0x9D: op_str="STA"; Tick(); ST(A, addressAbsolute()+X); break;
+        case 0x99: op_str="STA"; Tick(); ST(A, addressAbsolute()+Y); break;
         case 0x81: op_str="STA"; ST(A, addressIndexedIndirect()); break;
-        case 0x91: op_str="STA"; ST(A, addressIndirectIndexed()); break;
+        case 0x91: op_str="STA"; Tick(); ST(A, addressIndirectIndexed()); break;
 
         case 0x20: op_str="JSR"; JSR(addressAbsolute()); break;
 
@@ -215,18 +179,18 @@ uint8_t CPU6502state::fetchAndExecute() {
 
         case 0x60: op_str="RTS"; RTS(); break;
 
-        case 0x8A: op_str="TXA"; A = X; updateZN(A); break;
-        case 0x98: op_str="TYA"; A = Y; updateZN(A); break;
-        case 0x9A: op_str="TXS"; SP = X; break;
-        case 0xA8: op_str="TAY"; Y = A; updateZN(Y); break;
-        case 0xAA: op_str="TAX"; X = A; updateZN(X); break;
-        case 0xBA: op_str="TSX"; X = SP; updateZN(X); break;
+        case 0x8A: op_str="TXA"; Tick(); A = X; updateZN(A); break;
+        case 0x98: op_str="TYA"; Tick(); A = Y; updateZN(A); break;
+        case 0x9A: op_str="TXS"; Tick(); SP = X; break;
+        case 0xA8: op_str="TAY"; Tick(); Y = A; updateZN(Y); break;
+        case 0xAA: op_str="TAX"; Tick(); X = A; updateZN(X); break;
+        case 0xBA: op_str="TSX"; Tick(); X = SP; updateZN(X); break;
 
-        case 0xCA: op_str="DEX"; X -= 1; updateZN(X); break;
-        case 0x88: op_str="DEY"; Y -= 1; updateZN(Y); break;
+        case 0xCA: op_str="DEX"; Tick(); X -= 1; updateZN(X); break;
+        case 0x88: op_str="DEY"; Tick(); Y -= 1; updateZN(Y); break;
 
-        case 0xE8: op_str="INX"; X += 1; updateZN(X); break;
-        case 0xC8: op_str="INY"; Y += 1; updateZN(Y); break;
+        case 0xE8: op_str="INX"; Tick(); X += 1; updateZN(X); break;
+        case 0xC8: op_str="INY"; Tick(); Y += 1; updateZN(Y); break;
 
         case 0x29: op_str="AND"; AND(addressImmediate()); break;
         case 0x25: op_str="AND"; AND(addressZeroPage()); break;
@@ -291,44 +255,44 @@ uint8_t CPU6502state::fetchAndExecute() {
         case 0xE4: op_str="CPX"; Compare(X, addressZeroPage()); break;
         case 0xEC: op_str="CPX"; Compare(X, addressAbsolute()); break;
 
-        case 0x08: op_str="PHP"; pushStack(P | (1<<UNDEFINED) | (1<<B)); break;
-        case 0x28: op_str="PLP"; P = ((popStack() & ~(1<<B)) | (1<<UNDEFINED)); break;
-        case 0x48: op_str="PHA"; pushStack(A); break;
-        case 0x68: op_str="PLA"; A = popStack(); updateZN(A); break;
+        case 0x08: op_str="PHP"; Tick(); pushStack(P | (1<<UNDEFINED) | (1<<B)); break;
+        case 0x28: op_str="PLP"; Tick(); Tick(); P = ((popStack() & ~(1<<B)) | (1<<UNDEFINED)); break;
+        case 0x48: op_str="PHA"; Tick(); pushStack(A); break;
+        case 0x68: op_str="PLA"; Tick(); Tick(); A = popStack(); updateZN(A); break;
 
-        case 0x0A: op_str="ASL"; A = LeftShift(A); break;
-        case 0x1E: op_str="ASL"; ASL(addressAbsoluteX()); break;
-        case 0x0E: op_str="ASL"; ASL(addressAbsolute()); break;
-        case 0x16: op_str="ASL"; ASL(addressZeroPageX()); break;
+        case 0x0A: op_str="ASL"; A = LeftShift(A); Tick(); break;
         case 0x06: op_str="ASL"; ASL(addressZeroPage()); break;
+        case 0x16: op_str="ASL"; ASL(addressZeroPageX()); break;
+        case 0x0E: op_str="ASL"; ASL(addressAbsolute()); break;
+        case 0x1E: op_str="ASL"; ASL(addressAbsolute() + X); Tick(); break;
 
-        case 0x4A: op_str="LSR"; A = RightShift(A); break;
+        case 0x4A: op_str="LSR"; A = RightShift(A); Tick(); break;
         case 0x46: op_str="LSR"; LSR(addressZeroPage()); break;
         case 0x56: op_str="LSR"; LSR(addressZeroPageX()); break;
         case 0x4E: op_str="LSR"; LSR(addressAbsolute()); break;
-        case 0x5E: op_str="LSR"; LSR(addressAbsoluteX()); break;
+        case 0x5E: op_str="LSR"; LSR(addressAbsolute() + X); Tick(); break;
 
-        case 0x6A: op_str="ROR"; A = RightRotate(A); break;
+        case 0x6A: op_str="ROR"; A = RightRotate(A); Tick(); break;
         case 0x66: op_str="ROR"; ROR(addressZeroPage()); break;
         case 0x76: op_str="ROR"; ROR(addressZeroPageX()); break;
         case 0x6E: op_str="ROR"; ROR(addressAbsolute()); break;
-        case 0x7E: op_str="ROR"; ROR(addressAbsoluteX()); break;
+        case 0x7E: op_str="ROR"; Tick(); ROR(addressAbsolute() + X); break;
 
-        case 0x2A: op_str="ROL"; A = LeftRotate(A); break;
+        case 0x2A: op_str="ROL"; A = LeftRotate(A); Tick(); break;
         case 0x26: op_str="ROL"; ROL(addressZeroPage()); break;
         case 0x36: op_str="ROL"; ROL(addressZeroPageX()); break;
         case 0x2E: op_str="ROL"; ROL(addressAbsolute()); break;
-        case 0x3E: op_str="ROL"; ROL(addressAbsoluteX()); break;
+        case 0x3E: op_str="ROL"; ROL(addressAbsolute() + X); Tick(); break;
 
         case 0xE6: op_str="INC"; INC(addressZeroPage()); break;
         case 0xF6: op_str="INC"; INC(addressZeroPageX()); break;
         case 0xEE: op_str="INC"; INC(addressAbsolute()); break;
-        case 0xFE: op_str="INC"; INC(addressAbsoluteX()); break;
+        case 0xFE: op_str="INC"; INC(addressAbsolute() + X); Tick(); break;
 
         case 0xC6: op_str="DEC"; DEC(addressZeroPage()); break;
         case 0xD6: op_str="DEC"; DEC(addressZeroPageX()); break;
         case 0xCE: op_str="DEC"; DEC(addressAbsolute()); break;
-        case 0xDE: op_str="DEC"; DEC(addressAbsoluteX()); break;
+        case 0xDE: op_str="DEC"; DEC(addressAbsolute() + X); Tick(); break;
 
         case 0x40: op_str="RTI"; RTI(); break;
 
@@ -398,34 +362,37 @@ uint8_t CPU6502state::fetchAndExecute() {
         case 0x63: op_str="RRA"; RRA(addressIndexedIndirect()); break;
         case 0x73: op_str="RRA"; RRA(addressIndirectIndexed()); break;
 
-        case 0x04: op_str="NOP"; addressZeroPage(); break;
-        case 0x44: op_str="NOP"; addressZeroPage(); break;
-        case 0x64: op_str="NOP"; addressZeroPage(); break;
-        case 0x14: op_str="NOP"; addressZeroPageX(); break;
-        case 0x34: op_str="NOP"; addressZeroPageX(); break;
-        case 0x54: op_str="NOP"; addressZeroPageX(); break;
-        case 0x74: op_str="NOP"; addressZeroPageX(); break;
-        case 0xD4: op_str="NOP"; addressZeroPageX(); break;
-        case 0xF4: op_str="NOP"; addressZeroPageX(); break;
-        case 0x0C: op_str="NOP"; addressAbsolute(); break;
-        case 0x1C: op_str="NOP"; addressAbsoluteX(); break;
-        case 0x3C: op_str="NOP"; addressAbsoluteX(); break;
-        case 0x5C: op_str="NOP"; addressAbsoluteX(); break;
-        case 0x7C: op_str="NOP"; addressAbsoluteX(); break;
-        case 0xDC: op_str="NOP"; addressAbsoluteX(); break;
-        case 0xFC: op_str="NOP"; addressAbsoluteX(); break;
-        case 0x80: op_str="NOP"; addressImmediate(); break;
+        case 0x04: op_str="NOP"; addressZeroPage(); Tick(); break;
+        case 0x44: op_str="NOP"; addressZeroPage(); Tick(); break;
+        case 0x64: op_str="NOP"; addressZeroPage(); Tick(); break;
+        case 0x14: op_str="NOP"; addressZeroPageX(); Tick(); break;
+        case 0x34: op_str="NOP"; addressZeroPageX(); Tick(); break;
+        case 0x54: op_str="NOP"; addressZeroPageX(); Tick(); break;
+        case 0x74: op_str="NOP"; addressZeroPageX(); Tick(); break;
+        case 0xD4: op_str="NOP"; addressZeroPageX(); Tick(); break;
+        case 0xF4: op_str="NOP"; addressZeroPageX(); Tick(); break;
+        case 0x0C: op_str="NOP"; addressAbsolute(); Tick(); break;
+        case 0x1C: op_str="NOP"; addressAbsoluteX(); Tick(); break;
+        case 0x3C: op_str="NOP"; addressAbsoluteX(); Tick(); break;
+        case 0x5C: op_str="NOP"; addressAbsoluteX(); Tick(); break;
+        case 0x7C: op_str="NOP"; addressAbsoluteX(); Tick(); break;
+        case 0xDC: op_str="NOP"; addressAbsoluteX(); Tick(); break;
+        case 0xFC: op_str="NOP"; addressAbsoluteX(); Tick(); break;
+        case 0x80: op_str="NOP"; addressImmediate(); Tick(); break;
 
-        default: op_str="NOP"; break;
+        default: op_str="NOP"; Tick(); break;
     }
 
     //print debug info
     //sprintf(c1, "%02X", opcode);
-    //printf("%04X  %s %s %s  %s %s  A:%02X X:%02X Y:%02X P:%02X SP:%02X \n", oldPC, c1, c2, c3, op_str.c_str(), after, oldA, oldX, oldY, oldP, oldSP);
-    return clockCycles;
+    //printf("%04X  %s %s %s  %s %s  A:%02X X:%02X Y:%02X P:%02X SP:%02X CYC:%d\n", oldPC, c1, c2, c3, op_str.c_str(), after, oldA, oldX, oldY, oldP, oldSP, clock_cycles_before);
+    uint clock_cycles_after = this->clock_cycle;
+    return clock_cycles_after-clock_cycles_before;
 }
 
 uint8_t CPU6502state::WriteRam(uint16_t address, uint8_t value) {
+    Tick();
+
     if(address <= 0x1FFF) {
         ram[address%0x0800] = value;
     }
@@ -457,6 +424,8 @@ uint8_t CPU6502state::WriteRam(uint16_t address, uint8_t value) {
 }
 
 uint8_t CPU6502state::ReadRam(uint16_t address) {
+    Tick();
+
     if(address <= 0x1FFF) {
         return ram[address%0x0800];
     }
@@ -467,7 +436,7 @@ uint8_t CPU6502state::ReadRam(uint16_t address) {
         // Open bus behaviour not emulated
     }
     else if(address == 0x4015) {
-        // APU not emulated
+       // APU not emulated
     }
     else if(address <= 0x4017) {
         if(address == 0x4016) {
