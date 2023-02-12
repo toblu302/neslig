@@ -5,8 +5,8 @@
 #include "cpu6502.h"
 #include "ppu2C02.h"
 
-CPU6502state::CPU6502state(PPU2C02state* ppu, std::shared_ptr<Cartridge> cartridge) {
-    this->cartridge = cartridge;
+CPU6502state::CPU6502state(PPU2C02state* ppu, std::shared_ptr<Mapper> mapper) {
+    this->mapper = mapper;
 
     PC = 0xC000;
     SP = 0xFD;
@@ -19,7 +19,7 @@ CPU6502state::CPU6502state(PPU2C02state* ppu, std::shared_ptr<Cartridge> cartrid
     uint8_t low = ReadRam(0xFFFC);
     PC = (high << 8) | low;
     this->ppu = ppu;
-    this->ppu->SetCartridge(cartridge);
+    this->ppu->SetMapper(mapper);
     this->clock_cycle = 6;
 
     //printf("pc: %X %x %x\n", PC, high, low);
@@ -417,7 +417,7 @@ uint8_t CPU6502state::WriteRam(uint16_t address, uint8_t value) {
         }
     }
     else if (address >= 0x4020) {
-        // Write to cartridge not emulated
+        mapper->WritePrg(address, value);
     }
 
     return 0;
@@ -447,7 +447,7 @@ uint8_t CPU6502state::ReadRam(uint16_t address) {
         }
     }
     else if (address >= 0x4020) {
-        return cartridge->ReadPrg(address);
+        return mapper->ReadPrg(address);
     }
     return 0;
 }

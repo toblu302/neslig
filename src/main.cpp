@@ -16,13 +16,11 @@ int main(int argc, char *argv[])
         return 1;
     }
 
-    std::shared_ptr<Cartridge> cartridge = std::make_shared<Cartridge>(read_file(argv[1]));
-
-    printf("PRGROM: %d  CHRROM: %d  mapper: %d\n", cartridge->prg_rom_banks.size(), cartridge->chr_rom_banks.size(), cartridge->mapper);
-    //assert(cartridge.mapper == 0);
+    std::shared_ptr<Mapper> mapper = read_file(argv[1]);
+    std::cout << *mapper << std::endl;
 
     PPU2C02state ppu;
-    CPU6502state cpu(&ppu, cartridge);
+    CPU6502state cpu(&ppu, mapper);
 
     //initalize the Controller
     initController(&NES_Controller);

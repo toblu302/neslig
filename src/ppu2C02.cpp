@@ -12,8 +12,8 @@ PPU2C02state::PPU2C02state() {
     oam.fill(0xff);
 }
 
-void PPU2C02state::SetCartridge(std::shared_ptr<Cartridge> cartridge) {
-    this->cartridge = cartridge;
+void PPU2C02state::SetMapper(std::shared_ptr<Mapper> mapper) {
+    this->mapper = mapper;
 }
 
 uint8_t PPU2C02state::PPUcycle(SDL_Surface *screenSurface) {
@@ -284,6 +284,10 @@ uint8_t PPU2C02state::writeRegisters(uint16_t address, uint8_t value) {
 }
 
 void PPU2C02state::writeVRAM(uint16_t address, uint8_t value) {
+    if(address <= 0x1FFF) {
+        mapper->WriteChr(address, value);
+        return;
+    }
     assert(address <= 0x3F20);
     vram[address] = value;
     if( address == 0x3F10 || address == 0x3F14 || address == 0x3F18 || address == 0x3F1C ) {
@@ -301,7 +305,7 @@ uint8_t PPU2C02state::readVRAM(uint16_t address) {
     address &= 0x3FFF;
     switch(address) {
         case 0x0000 ... 0x1FFF:
-            return cartridge->ReadChr(address);
+            return mapper->ReadChr(address);
         default:
             return vram[address];
     }

@@ -72,8 +72,8 @@ class PPU2C02state {
         //initalize the PPU (ppu2C02.c)
         PPU2C02state();
 
-        void SetCartridge(std::shared_ptr<Cartridge> cartridge);
-        std::shared_ptr<Cartridge> cartridge;
+        void SetMapper(std::shared_ptr<Mapper> mapper);
+        std::shared_ptr<Mapper> mapper;
 
         //Ticking (ppu2C02.c)
         uint8_t PPUcycle(SDL_Surface *screenSurface);

@@ -18,7 +18,7 @@ enum Flags {
 // class to store the state of the processor
 class CPU6502state {
     public:
-        CPU6502state(PPU2C02state *ppu, std::shared_ptr<Cartridge> cartridge);
+        CPU6502state(PPU2C02state *ppu, std::shared_ptr<Mapper> mapper);
 
         std::array<uint8_t, 0x800> ram;
         uint16_t PC; //program counter (16 bits)
@@ -31,7 +31,7 @@ class CPU6502state {
         uint8_t ReadRam(uint16_t address);
         uint8_t WriteRam(uint16_t address, uint8_t value);
 
-        std::shared_ptr<Cartridge> cartridge;
+        std::shared_ptr<Mapper> mapper;
         PPU2C02state* ppu;
 
         //fetches and executes an opcode
