@@ -70,20 +70,22 @@ class PPU2C02state {
         uint8_t oamdma;
 
         //initalize the PPU (ppu2C02.c)
-        PPU2C02state();
+        PPU2C02state(SDL_Surface *screenSurface);
 
         void SetMapper(std::shared_ptr<Mapper> mapper);
         std::shared_ptr<Mapper> mapper;
 
         //Ticking (ppu2C02.c)
-        uint8_t PPUcycle(SDL_Surface *screenSurface);
+        uint8_t PPUcycle();
         void handleVisibleScanline();
         void horinc();
         void verinc();
 
         uint8_t rendering_enabled();
 
-        bool nmi;
+        bool nmi = false;
+
+        SDL_Surface *screenSurface;
 
         //Rendering stuff (ppu2C02rendering.c)
         void setPixelColor(SDL_Surface* screenSurface, int x, int y, uint32_t color);

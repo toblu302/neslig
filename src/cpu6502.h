@@ -8,6 +8,7 @@
 
 #include "filereader.h"
 #include "ppu2C02.h"
+#include "apu.h"
 
 class PPU2C02state;
 
@@ -59,8 +60,13 @@ class CPU6502state {
         void pushStack(int value);
         uint8_t popStack();
 
+        Apu apu;
+
+        uint8_t done_render = 0;
+
     private:
         uint clock_cycle = 0;
+
         void Tick();
 
         // Instructions (implemented in cpu6502instructions.c)

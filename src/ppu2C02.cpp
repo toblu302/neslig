@@ -2,7 +2,8 @@
 #include "ppu2C02.h"
 #include "cpu6502.h"
 
-PPU2C02state::PPU2C02state() {
+PPU2C02state::PPU2C02state(SDL_Surface *screenSurface) {
+    this->screenSurface = screenSurface;
     scanline = 241;
     dot = 0;
     odd_frame = 0;
@@ -16,7 +17,7 @@ void PPU2C02state::SetMapper(std::shared_ptr<Mapper> mapper) {
     this->mapper = mapper;
 }
 
-uint8_t PPU2C02state::PPUcycle(SDL_Surface *screenSurface) {
+uint8_t PPU2C02state::PPUcycle() {
 
     if( nmi_output && nmi_occurred ) {
         nmi_occurred = 0;

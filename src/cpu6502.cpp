@@ -5,7 +5,7 @@
 #include "cpu6502.h"
 #include "ppu2C02.h"
 
-CPU6502state::CPU6502state(PPU2C02state* ppu, std::shared_ptr<Mapper> mapper) {
+CPU6502state::CPU6502state(PPU2C02state *ppu, std::shared_ptr<Mapper> mapper) {
     this->mapper = mapper;
 
     PC = 0xC000;
@@ -15,14 +15,16 @@ CPU6502state::CPU6502state(PPU2C02state* ppu, std::shared_ptr<Mapper> mapper) {
     P = 0x24;
     A = 0;
 
+    this->ppu = ppu;
+    this->ppu->SetMapper(mapper);
+
     uint8_t high = ReadRam(0xFFFD);
     uint8_t low = ReadRam(0xFFFC);
     PC = (high << 8) | low;
-    this->ppu = ppu;
-    this->ppu->SetMapper(mapper);
-    this->clock_cycle = 6;
+    this->clock_cycle = 7;
+    //this->PC = 0xc000;
 
-    //printf("pc: %X %x %x\n", PC, high, low);
+    printf("pc: %X %x %x\n", PC, high, low);
 }
 
 int CPU6502state::updateZN(uint8_t variable) {
@@ -51,6 +53,11 @@ int CPU6502state::updateCCompare(int var1, int var2) {
 
 void CPU6502state::Tick() {
     clock_cycle += 1;
+
+    done_render |= ppu->PPUcycle();
+    done_render |= ppu->PPUcycle();
+    done_render |= ppu->PPUcycle();
+    apu.clock();
 }
 
 /******************
@@ -107,9 +114,9 @@ uint8_t CPU6502state::fetchAndExecute() {
     }
 
     std::string op_str = "";
+    uint clock_cycles_before = this->clock_cycle;
 
     uint8_t opcode = ReadRam( PC++ );
-    uint clock_cycles_before = this->clock_cycle;
     switch(opcode) {
         /***********************
         ** REGISTER OPERATIONS
@@ -400,7 +407,7 @@ uint8_t CPU6502state::WriteRam(uint16_t address, uint8_t value) {
         return ppu->writeRegisters(0x2000 + (address%8), value);
     }
     else if(address <= 0x4013 || address == 0x4015) {
-        // APU not emulated
+        apu.writeRegister(address, value);
     }
     else if(address == 0x4014) {
         for(int i=0; i<=0xFF; ++i) {
