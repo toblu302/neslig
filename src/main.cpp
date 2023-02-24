@@ -57,29 +57,27 @@ int main(int argc, char *argv[])
         }
 
 
-        //emulate CPU and PPU
-        uint8_t frame_finished = 0;
-        if( paused == 0 ) {
+        // Emulate CPU
+        // The CPU will clock both the PPU and the APU
+        uint32_t frame_start = SDL_GetTicks();
+
+        uint current_frame = ppu.GetCurrentFrame();
+        while(current_frame == ppu.GetCurrentFrame()) {
+
+            // If there are enough audio samples, simply wait until the
+            // audio callback clears some of them.
             if(cpu.apu.generated_samples < cpu.apu.samples_per_callback) {
                 cpu.fetchAndExecute();
-                if(cpu.done_render) {
-                    frame_finished = 1;
-                    cpu.done_render = 0;
-                }
             }
         }
 
-        if( frame_finished ) {
-            frame_count += 1;
-            //printf("Frame %d rendered!\n", frame_count);
-            uint32_t frame_time = SDL_GetTicks() - frame_start;
-            frame_start = SDL_GetTicks();
-            SDL_UpdateWindowSurface(window);
-
-            if(frame_time < delay) {
-                SDL_Delay(delay-frame_time);
-            }
+        //printf("Frame %d rendered!\n", frame_count);
+        uint32_t frame_time = SDL_GetTicks() - frame_start;
+        if(frame_time < delay) {
+            SDL_Delay(delay-frame_time);
         }
+
+        SDL_UpdateWindowSurface(window);
 
     }
 

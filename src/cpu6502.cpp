@@ -54,10 +54,10 @@ int CPU6502state::updateCCompare(int var1, int var2) {
 void CPU6502state::Tick() {
     clock_cycle += 1;
 
-    done_render |= ppu->PPUcycle();
-    done_render |= ppu->PPUcycle();
-    done_render |= ppu->PPUcycle();
     apu.clock();
+    ppu->PPUcycle();
+    ppu->PPUcycle();
+    ppu->PPUcycle();
 }
 
 /******************

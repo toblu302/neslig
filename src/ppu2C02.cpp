@@ -17,7 +17,7 @@ void PPU2C02state::SetMapper(std::shared_ptr<Mapper> mapper) {
     this->mapper = mapper;
 }
 
-uint8_t PPU2C02state::PPUcycle() {
+void PPU2C02state::PPUcycle() {
 
     if( nmi_output && nmi_occurred ) {
         nmi_occurred = 0;
@@ -52,7 +52,7 @@ uint8_t PPU2C02state::PPUcycle() {
             nmi_occurred = 1;
             odd_frame ^= 1;
 
-            return 1;
+            current_frame += 1;
         }
     }
 
@@ -72,8 +72,6 @@ uint8_t PPU2C02state::PPUcycle() {
             VRAM_address |= (t & ~1055 & ~(1<<15) );
         }
     }
-
-    return 0;
 }
 
 uint8_t PPU2C02state::rendering_enabled() {

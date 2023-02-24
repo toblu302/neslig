@@ -76,7 +76,7 @@ class PPU2C02state {
         std::shared_ptr<Mapper> mapper;
 
         //Ticking (ppu2C02.c)
-        uint8_t PPUcycle();
+        void PPUcycle();
         void handleVisibleScanline();
         void horinc();
         void verinc();
@@ -138,6 +138,12 @@ class PPU2C02state {
 
         uint8_t num_sprites;
         PPUsprite sprites[8];
+
+        uint GetCurrentFrame() { return current_frame; }
+    
+    private:
+        uint current_frame=0;
+
 };
 
 #endif // PPU2C02_H_INCLUDED
