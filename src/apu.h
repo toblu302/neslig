@@ -2,12 +2,39 @@
 #define APU_H_INCLUDED
 
 #include <stdint.h>
+#include <bit>
 #include <iostream>
 #include <SDL2/SDL_audio.h>
 #include <queue>
 #include <atomic>
 
 void audio_callback(void *, Uint8*, int);
+
+class Pulse {
+    public:
+        void clock() {
+            timer -= 1;
+            if(timer == 0) {
+                sequence = std::rotr(sequence, 1);
+                timer = timer_reset;
+                output = ((sequence&1) == 1);
+            }
+        }
+
+        uint8_t sample() {
+            if(output) {
+                return envelope;
+            }
+            return 0;
+        }
+
+        bool enabled=false;
+        bool output=false;
+        uint8_t envelope=0;
+        uint8_t sequence=0;
+        uint16_t timer_reset=0;
+        uint16_t timer=0;
+};
 
 class Apu {
     public:
@@ -23,8 +50,8 @@ class Apu {
 
             deviceId = SDL_OpenAudioDevice(NULL, 0, &desiredSpec, NULL, SDL_AUDIO_ALLOW_ANY_CHANGE);
 
-            for(uint8_t i=0; i<32; ++i) {
-                pulse_table[i] = 95.52/(8128.0/i + 100)*3;
+            for(uint8_t i=0; i<=32; ++i) {
+                pulse_table[i] = 95.52/(8128.0/i + 100);
             }
 
             SDL_PauseAudioDevice(deviceId, 0);
@@ -41,28 +68,22 @@ class Apu {
 
         SDL_AudioStream *stream;
 
-        uint8_t cnt = 50;
-        uint8_t current_out = 0xff;
-
         std::atomic<uint32_t> generated_samples = 0;
         const Uint16 samples_per_callback = 2048;
 
 
     private:
-        uint16_t timer;
-        uint16_t timer_reset;
-        uint8_t pulse_sequence;
-        uint8_t pulse_envelope;
-        bool pulse_output;
-
-        float pulse_table[32];
+        Pulse pulse1;
+        Pulse pulse2;
 
         uint16_t clock_counter = 0;
 
         uint32_t sample_timer = 0;
-
         const uint32_t cpu_frequency = 1789773;
         const int sample_frequency = 44100;
+
+        float pulse_table[32];
+        float GetSample();
 
         SDL_AudioDeviceID deviceId;
 };

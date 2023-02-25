@@ -1,7 +1,6 @@
 #include "apu.h"
 
 #include <iostream>
-#include <bit>
 #include <SDL2/SDL.h>
 
 void audio_callback(void *_apu, Uint8 *_stream, int _length) {
@@ -35,12 +34,8 @@ void Apu::clock() {
 
     if(clock_counter % 2 == 0)
     {
-        timer -= 1;
-        if(timer == 0) {
-            pulse_sequence = std::rotr(pulse_sequence, 1);
-            timer = timer_reset;
-            pulse_output = pulse_sequence&1;
-        }
+        pulse1.clock();
+        pulse2.clock();
     }
 
 
@@ -51,35 +46,57 @@ void Apu::clock() {
         generated_samples += 1;
 
         SDL_LockAudioDevice(deviceId);
-        if(pulse_output) {
-            output_buffer.push(pulse_table[pulse_envelope & 0x1F]);
-        } else {
-            output_buffer.push(0);
-        }
+        output_buffer.push( GetSample() );
         SDL_UnlockAudioDevice(deviceId);
     }
 
 }
 
+float Apu::GetSample() {
+    uint8_t pulse1_sample = pulse1.sample();
+    uint8_t pulse2_sample = pulse2.sample();
+
+    return pulse_table[(pulse1_sample+pulse2_sample) & 0x1F];
+}
+
 void Apu::writeRegister(const uint16_t &address, const uint8_t &value) {
     switch(address) {
+        case 0x4000:
+            switch((value&0xC0) >> 6) {
+                case 0x00: pulse1.sequence = 0b01000000; break;
+                case 0x01: pulse1.sequence = 0b01100000; break;
+                case 0x02: pulse1.sequence = 0b01111000; break;
+                case 0x03: pulse1.sequence = 0b10011111; break;
+            }
+            pulse1.envelope = (value&0x0F)<<1;
+            break;
+
+        case 0x4002:
+            pulse1.timer_reset = (pulse1.timer_reset & 0xFF00) | value;
+            break;
+
+        case 0x4003:
+            pulse1.timer_reset = (pulse1.timer_reset & 0x00FF) | ((value&0x7) << 8);
+            pulse1.timer = pulse1.timer_reset;
+            break;
+
         case 0x4004:
             switch((value&0xC0) >> 6) {
-                case 0x00: pulse_sequence = 0b01000000; break;
-                case 0x01: pulse_sequence = 0b01100000; break;
-                case 0x02: pulse_sequence = 0b01111000; break;
-                case 0x03: pulse_sequence = 0b10011111; break;
+                case 0x00: pulse2.sequence = 0b01000000; break;
+                case 0x01: pulse2.sequence = 0b01100000; break;
+                case 0x02: pulse2.sequence = 0b01111000; break;
+                case 0x03: pulse2.sequence = 0b10011111; break;
             }
-            pulse_envelope = (value&0x0F)<<1;
+            pulse2.envelope = (value&0x0F)<<1;
             break;
 
         case 0x4006:
-            timer_reset = (timer_reset & 0xFF00) | value;
+            pulse2.timer_reset = (pulse2.timer_reset & 0xFF00) | value;
             break;
 
         case 0x4007:
-            timer_reset = (timer_reset & 0x00FF) | ((value&0x7) << 8);
-            timer = timer_reset;
+            pulse2.timer_reset = (pulse2.timer_reset & 0x00FF) | ((value&0x7) << 8);
+            pulse2.timer = pulse2.timer_reset;
             break;
     }
 }
