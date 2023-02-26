@@ -8,7 +8,7 @@
 
 #include "filereader.h"
 #include "ppu2C02.h"
-#include "apu.h"
+#include "apu/apu.h"
 
 class PPU2C02state;
 

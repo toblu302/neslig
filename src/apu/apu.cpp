@@ -1,4 +1,5 @@
 #include "apu.h"
+#include "channels.h"
 
 #include <iostream>
 #include <SDL2/SDL.h>
@@ -50,23 +51,11 @@ void Apu::clock() {
 
         if(five_step_sequence) {
             switch(frame_step%5) {
-                case 0:
+                case 0: case 2:
                     pulse1.clock_envelope();
                     pulse2.clock_envelope();
                     break;
-                case 1:
-                    pulse1.clock_envelope();
-                    pulse2.clock_envelope();
-                    pulse1.clock_length_counter();
-                    pulse2.clock_length_counter();
-                    break;
-                case 2:
-                    pulse1.clock_envelope();
-                    pulse2.clock_envelope();
-                    break;
-                case 3:
-                    break;
-                case 4:
+                case 1: case 3:
                     pulse1.clock_envelope();
                     pulse2.clock_envelope();
                     pulse1.clock_length_counter();
@@ -113,10 +102,15 @@ void Apu::writeRegister(const uint16_t &address, const uint8_t &value) {
                     case 0x02: pulse->sequence = 0b01111000; break;
                     case 0x03: pulse->sequence = 0b10011111; break;
                 }
-                pulse->envelope = value&0x0F;
+                pulse->envelope.is_looping = value&(1<<5);
+                pulse->length_counter.is_halted = value&(1<<5);
+
                 pulse->is_constant = value&(1<<4);
-                pulse->is_infinite = value&(1<<5);
-                pulse->start_flag = true;
+
+                pulse->constant_volume = value&0x0F;
+                pulse->envelope.reset_level = value&0x0F;
+
+                pulse->envelope.start_flag = true;
                 break;
 
             case 1:
@@ -129,8 +123,8 @@ void Apu::writeRegister(const uint16_t &address, const uint8_t &value) {
             case 3:
                 pulse->timer_reset = (pulse->timer_reset & 0x00FF) | ((value&0x7) << 8);
                 pulse->timer = pulse->timer_reset;
-                pulse->length_counter = length_counter_table[(value&0xF8)>>3];
-                pulse->start_flag = true;
+                pulse->length_counter.SetValue((value&0xF8)>>3);
+                pulse->envelope.start_flag = true;
                 break;
         }
     }
