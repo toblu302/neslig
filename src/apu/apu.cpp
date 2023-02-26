@@ -55,11 +55,13 @@ void Apu::clock() {
                     pulse1.clock_envelope();
                     pulse2.clock_envelope();
                     break;
-                case 1: case 3:
+                case 1: case 4:
                     pulse1.clock_envelope();
                     pulse2.clock_envelope();
                     pulse1.clock_length_counter();
                     pulse2.clock_length_counter();
+                    pulse1.clock_sweep();
+                    pulse2.clock_sweep();
                     break;
             }
         }
@@ -114,6 +116,11 @@ void Apu::writeRegister(const uint16_t &address, const uint8_t &value) {
                 break;
 
             case 1:
+                pulse->sweep_enabled = (value>>7)&1;
+                pulse->sweep_divider_period = (value>>4)&7;
+                pulse->sweep_negated = (value>>3)&1;
+                pulse->sweep_shift_count = value&0x7;
+                pulse->sweep_reload = true;
                 break;
 
             case 2:

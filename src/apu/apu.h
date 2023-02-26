@@ -49,8 +49,8 @@ class Apu {
 
 
     private:
-        Pulse pulse1;
-        Pulse pulse2;
+        Pulse pulse1 = Pulse(true);
+        Pulse pulse2 = Pulse(false);
 
         uint16_t clock_counter = 0;
 

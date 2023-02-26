@@ -33,9 +33,11 @@ class LengthCounter {
 
 class Pulse {
     public:
+        Pulse(bool is_channel_1){this->is_channel_1=is_channel_1;}
         void clock_timer();
         void clock_envelope();
         void clock_length_counter();
+        void clock_sweep();
         uint8_t sample();
 
         Envelope envelope;
@@ -48,6 +50,18 @@ class Pulse {
         uint8_t sequence=0;
         uint16_t timer_reset=0;
         uint16_t timer=0;
+
+        bool sweep_enabled=false;
+        uint8_t sweep_divider_period=0;
+        uint8_t sweep_divider_counter=0;
+        bool sweep_negated=false;
+        uint8_t sweep_shift_count=0;
+        bool sweep_reload=false;
+        void sweep();
+        bool IsSweepMuting();
+
+    private:
+        bool is_channel_1;
 };
 
 

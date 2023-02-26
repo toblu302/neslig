@@ -1,4 +1,5 @@
 #include <bit>
+#include <iostream>
 
 #include "channels.h"
 
@@ -19,8 +20,38 @@ void Pulse::clock_length_counter() {
     length_counter.clock();
 }
 
+void Pulse::clock_sweep() {
+    if(sweep_divider_counter==0 && sweep_enabled && !IsSweepMuting()) {
+        sweep();
+    }
+    else if(sweep_divider_counter==0 || sweep_reload) {
+        sweep_divider_counter=sweep_divider_period+1;
+        sweep_reload=false;
+    }
+    else {
+        --sweep_divider_counter;
+    }
+}
+
+void Pulse::sweep() {
+    uint16_t delta = timer_reset >> sweep_shift_count;
+    if(sweep_negated) {
+        if(is_channel_1) {
+            delta += 1;
+        }
+        timer_reset -= delta;
+    }
+    else {
+        timer_reset += delta;
+    }
+}
+
+bool Pulse::IsSweepMuting() {
+    return timer<8 || timer_reset > 0x7FF;
+}
+
 uint8_t Pulse::sample() {
-    if(!output || !enabled || timer<8 || timer_reset > 0x7ff || length_counter.value==0 ) {
+    if(!output || !enabled || IsSweepMuting() || length_counter.value==0 ) {
             return 0;
     }
 
