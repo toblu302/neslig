@@ -406,7 +406,7 @@ uint8_t CPU6502state::WriteRam(uint16_t address, uint8_t value) {
     else if(address <= 0x3FFF) {
         return ppu->writeRegisters(0x2000 + (address%8), value);
     }
-    else if(address <= 0x4013 || address == 0x4015) {
+    else if(address <= 0x4013 || address == 0x4015 || address == 0x4017) {
         apu.writeRegister(address, value);
     }
     else if(address == 0x4014) {
