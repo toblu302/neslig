@@ -8,7 +8,7 @@ void Pulse::clock_timer() {
     if(timer == 0) {
         sequence = std::rotr(sequence, 1);
         timer = timer_reset;
-        output = ((sequence&1) == 1);
+        output = (sequence&1);
     }
 }
 
@@ -37,9 +37,10 @@ void Pulse::sweep() {
     uint16_t delta = timer_reset >> sweep_shift_count;
     if(sweep_negated) {
         if(is_channel_1) {
-            delta += 1;
+            timer_reset -= delta+1;
+        } else {
+            timer_reset -= delta;
         }
-        timer_reset -= delta;
     }
     else {
         timer_reset += delta;
@@ -52,7 +53,7 @@ bool Pulse::IsSweepMuting() {
 
 uint8_t Pulse::sample() {
     if(!output || !enabled || IsSweepMuting() || length_counter.value==0 ) {
-            return 0;
+        return 0;
     }
 
     if(is_constant) {

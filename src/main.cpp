@@ -66,7 +66,7 @@ int main(int argc, char *argv[])
 
             // If there are enough audio samples, simply wait until the
             // audio callback clears some of them.
-            if(cpu.apu.generated_samples < cpu.apu.samples_per_callback) {
+            if(cpu.apu.generated_samples <= cpu.apu.samples_per_callback+1000) {
                 cpu.fetchAndExecute();
             }
         }

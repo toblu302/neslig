@@ -415,13 +415,8 @@ uint8_t CPU6502state::WriteRam(uint16_t address, uint8_t value) {
         }
         return 513; //TODO: odd cpu cycles takes one extra cycle
     }
-    else if(address <= 0x4017) {
-        if(address == 0x4016) {
-            writeController(&NES_Controller, value);
-        }
-        else if(address == 0x4017) {
-            // Controller 2 not emulated
-        }
+    else if(address == 0x4016) {
+        writeController(&NES_Controller, value);
     }
     else if (address >= 0x4020) {
         mapper->WritePrg(address, value);
@@ -442,8 +437,8 @@ uint8_t CPU6502state::ReadRam(uint16_t address) {
     else if(address <= 0x4014) {
         // Open bus behaviour not emulated
     }
-    else if(address == 0x4015) {
-       // APU not emulated
+    else if(address <= 0x4013 || address == 0x4015) {
+        // APU not emulated
     }
     else if(address <= 0x4017) {
         if(address == 0x4016) {

@@ -26,8 +26,8 @@ class Apu {
 
             deviceId = SDL_OpenAudioDevice(NULL, 0, &desiredSpec, NULL, SDL_AUDIO_ALLOW_ANY_CHANGE);
 
-            for(uint8_t i=0; i<=32; ++i) {
-                pulse_table[i] = 95.52/(8128.0/i + 100);
+            for(uint8_t i=0; i<32; ++i) {
+                pulse_table[i] = 95.52/(8128.0/((float)i) + 100.0);
             }
 
             SDL_PauseAudioDevice(deviceId, 0);
@@ -64,7 +64,6 @@ class Apu {
 
         float pulse_table[32];
         float GetSample();
-
 
         SDL_AudioDeviceID deviceId;
 };

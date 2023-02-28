@@ -1,6 +1,7 @@
 #include "apu.h"
 #include "channels.h"
 
+#include <bit>
 #include <iostream>
 #include <SDL2/SDL.h>
 
@@ -40,10 +41,10 @@ void Apu::clock() {
         pulse2.clock_timer();
     }
 
-    // frame steps are clocked at ~240 hz in 5-step sequence mode
-    // and ~192 Hz in 4-step sequence mode
-    uint32_t frame_clock = 240;
-    if(!five_step_sequence) frame_clock = 192;
+    // frame steps are clocked at ~240 hz in 4-step sequence mode
+    // and ~192 Hz in 5-step sequence mode
+    uint32_t frame_clock = 192;
+    if(!five_step_sequence) frame_clock = 240;
 
     frame_timer += frame_clock;
     if(frame_timer >= cpu_frequency) {
@@ -80,6 +81,7 @@ void Apu::clock() {
         SDL_LockAudioDevice(deviceId);
         output_buffer.push( GetSample() );
         SDL_UnlockAudioDevice(deviceId);
+
     }
 
 }
@@ -88,8 +90,8 @@ float Apu::GetSample() {
     uint8_t pulse1_sample = pulse1.sample();
     uint8_t pulse2_sample = pulse2.sample();
 
-    return pulse_table[(pulse1_sample+pulse2_sample) & 0x1F];
-    //return pulse_table[pulse1_sample & 0x1F];
+    float value = pulse_table[(pulse1_sample+pulse2_sample) & 0x1F];
+    return value;
 }
 
 void Apu::writeRegister(const uint16_t &address, const uint8_t &value) {
@@ -104,15 +106,14 @@ void Apu::writeRegister(const uint16_t &address, const uint8_t &value) {
                     case 0x02: pulse->sequence = 0b01111000; break;
                     case 0x03: pulse->sequence = 0b10011111; break;
                 }
-                pulse->envelope.is_looping = value&(1<<5);
-                pulse->length_counter.is_halted = value&(1<<5);
+                pulse->envelope.is_looping = (value>>5)&1;
+                pulse->length_counter.is_halted = (value>>5)&1;
 
-                pulse->is_constant = value&(1<<4);
+                pulse->is_constant = (value>>4)&1;
 
                 pulse->constant_volume = value&0x0F;
-                pulse->envelope.reset_level = value&0x0F;
+                pulse->envelope.reset_level = value&0xF;
 
-                pulse->envelope.start_flag = true;
                 break;
 
             case 1:
@@ -124,12 +125,11 @@ void Apu::writeRegister(const uint16_t &address, const uint8_t &value) {
                 break;
 
             case 2:
-                pulse->timer_reset = (pulse->timer_reset & 0xFF00) | value;
+                pulse->timer_reset = (pulse->timer_reset & 0x700) | value;
                 break;
 
             case 3:
                 pulse->timer_reset = (pulse->timer_reset & 0x00FF) | ((value&0x7) << 8);
-                pulse->timer = pulse->timer_reset;
                 pulse->length_counter.SetValue((value&0xF8)>>3);
                 pulse->envelope.start_flag = true;
                 break;
@@ -139,7 +139,14 @@ void Apu::writeRegister(const uint16_t &address, const uint8_t &value) {
     switch(address) {
         case 0x4015:
             pulse1.enabled = value&1;
-            pulse2.enabled = value&(1<<1);
+            if(!pulse1.enabled) {
+                pulse1.length_counter.value = 0;
+            }
+
+            pulse2.enabled = (value>>1)&1;
+            if(!pulse2.enabled) {
+                pulse2.length_counter.value = 0;
+            }
             break;
 
         case 0x4017:
