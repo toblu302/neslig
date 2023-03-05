@@ -29,6 +29,9 @@ class Apu {
             for(uint8_t i=0; i<32; ++i) {
                 pulse_table[i] = 95.52/(8128.0/((float)i) + 100.0);
             }
+            for(uint8_t i=0; i<203; ++i) {
+                triangle_table[i] = 163.67/(24329.0/((float)i)+100);
+            }
 
             SDL_PauseAudioDevice(deviceId, 0);
         }
@@ -51,6 +54,7 @@ class Apu {
     private:
         Pulse pulse1 = Pulse(true);
         Pulse pulse2 = Pulse(false);
+        Triangle triangle;
 
         uint32_t clock_counter = 0;
 
@@ -63,6 +67,8 @@ class Apu {
         uint32_t frame_step = 0;
 
         float pulse_table[32];
+        float triangle_table[203];
+
         float GetSample();
 
         void ClockSweeps();

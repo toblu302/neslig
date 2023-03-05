@@ -22,14 +22,14 @@ void Pulse::ClockLengthCounter() {
 
 void Pulse::ClockSweep() {
     if(sweep_reload) {
-        sweep_divider_counter=sweep_divider_period;
+        sweep_divider_counter=sweep_divider_period+1;
         sweep_reload=false;
     }
     else if(sweep_divider_counter>0) {
         --sweep_divider_counter;
     }
     else {
-        sweep_divider_counter=sweep_divider_period;
+        sweep_divider_counter=sweep_divider_period+1;
         if(sweep_enabled) {
             Sweep();
         }
@@ -64,6 +64,39 @@ uint8_t Pulse::GetSample() {
     } else {
         return envelope.decay_level;
     }
+}
+
+void Triangle::ClockTimer() {
+    timer -= 1;
+    if(timer == 0) {
+        position = (position+1)%32;
+        timer = timer_reset;
+    }
+}
+
+void Triangle::ClockLengthCounter() {
+    length_counter.clock();
+}
+
+void Triangle::ClockLinearCounter() {
+    if(counter_reload) {
+        counter_value=counter_reload_value;
+    }
+    else if(counter_value>0) {
+        --counter_value;
+    }
+
+    if(counter_on) {
+        counter_reload=false;
+    }
+}
+
+uint8_t Triangle::GetSample() {
+    if(!enabled || counter_value==0 || length_counter.value==0) {
+        return 0;
+    }
+
+    return sequence[position];
 }
 
 void Envelope::clock() {

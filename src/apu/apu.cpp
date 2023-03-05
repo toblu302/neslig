@@ -35,6 +35,7 @@ void Apu::clock() {
     clock_counter += 1;
 
     // clock timers
+    triangle.ClockTimer();
     if(clock_counter % 2 == 0)
     {
         pulse1.ClockTimer();
@@ -85,8 +86,9 @@ void Apu::clock() {
 float Apu::GetSample() {
     uint8_t pulse1_sample = pulse1.GetSample();
     uint8_t pulse2_sample = pulse2.GetSample();
+    uint8_t triangle_sample = triangle.GetSample();
 
-    float value = pulse_table[(pulse1_sample+pulse2_sample) & 0x1F];
+    float value = pulse_table[(pulse1_sample+pulse2_sample) & 0x1F] + triangle_table[3*triangle_sample];
     return value;
 }
 
@@ -98,11 +100,13 @@ void Apu::ClockSweeps() {
 void Apu::ClockEnvelopes() {
     pulse1.ClockEnvelope();
     pulse2.ClockEnvelope();
+    triangle.ClockLinearCounter();
 }
 
 void Apu::ClockLengthCounters() {
     pulse1.ClockLengthCounter();
     pulse2.ClockLengthCounter();
+    triangle.ClockLengthCounter();
 }
 
 void Apu::writeRegister(const uint16_t &address, const uint8_t &value) {
@@ -148,6 +152,22 @@ void Apu::writeRegister(const uint16_t &address, const uint8_t &value) {
     }
 
     switch(address) {
+        case 0x4008:
+            triangle.length_counter.is_halted = (value>>7)&1;
+            triangle.counter_on = ((value>>7)&1)==0;
+            triangle.counter_reload_value = value&0x7F;
+            break;
+
+        case 0x400A:
+            triangle.timer_reset = (triangle.timer_reset & 0x700) | value;
+            break;
+
+        case 0x400B:
+            triangle.timer_reset = (triangle.timer_reset & 0x00FF) | ((value&0x7) << 8);
+            triangle.length_counter.SetValue((value&0xF8)>>3);
+            triangle.counter_reload = true;
+            break;
+
         case 0x4015:
             pulse1.enabled = value&1;
             if(!pulse1.enabled) {
@@ -158,6 +178,12 @@ void Apu::writeRegister(const uint16_t &address, const uint8_t &value) {
             if(!pulse2.enabled) {
                 pulse2.length_counter.value = 0;
             }
+
+            triangle.enabled = (value>>2)&1;
+            if(!triangle.enabled) {
+                triangle.length_counter.value = 0;
+            }
+
             break;
 
         case 0x4017:
