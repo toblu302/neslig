@@ -37,8 +37,8 @@ void Apu::clock() {
     // clock timers
     if(clock_counter % 2 == 0)
     {
-        pulse1.clock_timer();
-        pulse2.clock_timer();
+        pulse1.ClockTimer();
+        pulse2.ClockTimer();
     }
 
     // frame steps are clocked at ~240 hz in 4-step sequence mode
@@ -53,16 +53,12 @@ void Apu::clock() {
         if(five_step_sequence) {
             switch(frame_step%5) {
                 case 0: case 2:
-                    pulse1.clock_envelope();
-                    pulse2.clock_envelope();
+                    ClockEnvelopes();
                     break;
                 case 1: case 4:
-                    pulse1.clock_envelope();
-                    pulse2.clock_envelope();
-                    pulse1.clock_length_counter();
-                    pulse2.clock_length_counter();
-                    pulse1.clock_sweep();
-                    pulse2.clock_sweep();
+                    ClockEnvelopes();
+                    ClockLengthCounters();
+                    ClockSweeps();
                     break;
             }
         }
@@ -87,11 +83,26 @@ void Apu::clock() {
 }
 
 float Apu::GetSample() {
-    uint8_t pulse1_sample = pulse1.sample();
-    uint8_t pulse2_sample = pulse2.sample();
+    uint8_t pulse1_sample = pulse1.GetSample();
+    uint8_t pulse2_sample = pulse2.GetSample();
 
     float value = pulse_table[(pulse1_sample+pulse2_sample) & 0x1F];
     return value;
+}
+
+void Apu::ClockSweeps() {
+    pulse1.ClockSweep();
+    pulse2.ClockSweep();
+}
+
+void Apu::ClockEnvelopes() {
+    pulse1.ClockEnvelope();
+    pulse2.ClockEnvelope();
+}
+
+void Apu::ClockLengthCounters() {
+    pulse1.ClockLengthCounter();
+    pulse2.ClockLengthCounter();
 }
 
 void Apu::writeRegister(const uint16_t &address, const uint8_t &value) {
@@ -151,6 +162,11 @@ void Apu::writeRegister(const uint16_t &address, const uint8_t &value) {
 
         case 0x4017:
             five_step_sequence = value&(1<<7);
+            if(five_step_sequence) {
+                ClockEnvelopes();
+                ClockLengthCounters();
+                ClockSweeps();
+            }
             break;
     }
 }

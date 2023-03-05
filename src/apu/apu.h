@@ -52,7 +52,7 @@ class Apu {
         Pulse pulse1 = Pulse(true);
         Pulse pulse2 = Pulse(false);
 
-        uint16_t clock_counter = 0;
+        uint32_t clock_counter = 0;
 
         uint32_t sample_timer = 0;
         const uint32_t cpu_frequency = 1789773;
@@ -64,6 +64,10 @@ class Apu {
 
         float pulse_table[32];
         float GetSample();
+
+        void ClockSweeps();
+        void ClockEnvelopes();
+        void ClockLengthCounters();
 
         SDL_AudioDeviceID deviceId;
 };

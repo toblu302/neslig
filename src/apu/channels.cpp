@@ -3,7 +3,7 @@
 
 #include "channels.h"
 
-void Pulse::clock_timer() {
+void Pulse::ClockTimer() {
     timer -= 1;
     if(timer == 0) {
         sequence = std::rotr(sequence, 1);
@@ -12,28 +12,31 @@ void Pulse::clock_timer() {
     }
 }
 
-void Pulse::clock_envelope() {
+void Pulse::ClockEnvelope() {
     envelope.clock();
 }
 
-void Pulse::clock_length_counter() {
+void Pulse::ClockLengthCounter() {
     length_counter.clock();
 }
 
-void Pulse::clock_sweep() {
-    if(sweep_divider_counter==0 && sweep_enabled && !IsSweepMuting()) {
-        sweep();
-    }
-    else if(sweep_divider_counter==0 || sweep_reload) {
-        sweep_divider_counter=sweep_divider_period+1;
+void Pulse::ClockSweep() {
+    if(sweep_reload) {
+        sweep_divider_counter=sweep_divider_period;
         sweep_reload=false;
     }
-    else {
+    else if(sweep_divider_counter>0) {
         --sweep_divider_counter;
+    }
+    else {
+        sweep_divider_counter=sweep_divider_period;
+        if(sweep_enabled) {
+            Sweep();
+        }
     }
 }
 
-void Pulse::sweep() {
+void Pulse::Sweep() {
     uint16_t delta = timer_reset >> sweep_shift_count;
     if(sweep_negated) {
         if(is_channel_1) {
@@ -51,7 +54,7 @@ bool Pulse::IsSweepMuting() {
     return timer<8 || timer_reset > 0x7FF;
 }
 
-uint8_t Pulse::sample() {
+uint8_t Pulse::GetSample() {
     if(!output || !enabled || IsSweepMuting() || length_counter.value==0 ) {
         return 0;
     }
