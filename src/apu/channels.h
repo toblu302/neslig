@@ -1,6 +1,7 @@
 #ifndef CHANNELS_H_INCLUDED
 #define CHANNELS_H_INCLUDED
 
+#include <array>
 #include <stdint.h>
 
 class Envelope {
@@ -44,12 +45,12 @@ class Pulse {
         LengthCounter length_counter;
 
         bool enabled=false;
-        bool output=false;
         bool is_constant=true;
         uint8_t constant_volume=0;
-        uint8_t sequence=0;
+        std::array<bool, 8> sequence;
         uint16_t timer_reset=0;
         uint16_t timer=0;
+        uint8_t sequence_index=0;
 
         bool sweep_enabled=false;
         uint8_t sweep_divider_period=0;

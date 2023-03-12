@@ -1,4 +1,3 @@
-#include <bit>
 #include <iostream>
 
 #include "channels.h"
@@ -6,9 +5,8 @@
 void Pulse::ClockTimer() {
     timer -= 1;
     if(timer == 0) {
-        sequence = std::rotr(sequence, 1);
         timer = timer_reset;
-        output = (sequence&1);
+        sequence_index = (sequence_index+1)%8;
     }
 }
 
@@ -55,7 +53,7 @@ bool Pulse::IsSweepMuting() {
 }
 
 uint8_t Pulse::GetSample() {
-    if(!output || !enabled || IsSweepMuting() || length_counter.value==0 ) {
+    if(!enabled || !(sequence[sequence_index]) || IsSweepMuting() || length_counter.value==0 ) {
         return 0;
     }
 

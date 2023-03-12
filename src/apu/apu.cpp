@@ -116,10 +116,10 @@ void Apu::writeRegister(const uint16_t &address, const uint8_t &value) {
         switch(address-base) {
             case 0:
                 switch((value&0xC0) >> 6) {
-                    case 0x00: pulse->sequence = 0b01000000; break;
-                    case 0x01: pulse->sequence = 0b01100000; break;
-                    case 0x02: pulse->sequence = 0b01111000; break;
-                    case 0x03: pulse->sequence = 0b10011111; break;
+                    case 0x00: pulse->sequence = {0,1,0,0,0,0,0,0}; break;
+                    case 0x01: pulse->sequence = {0,1,1,0,0,0,0,0}; break;
+                    case 0x02: pulse->sequence = {0,1,1,1,1,0,0,0}; break;
+                    case 0x03: pulse->sequence = {1,0,0,1,1,1,1,1}; break;
                 }
                 pulse->envelope.is_looping = (value>>5)&1;
                 pulse->length_counter.is_halted = (value>>5)&1;
@@ -147,6 +147,7 @@ void Apu::writeRegister(const uint16_t &address, const uint8_t &value) {
                 pulse->timer_reset = (pulse->timer_reset & 0x00FF) | ((value&0x7) << 8);
                 pulse->length_counter.SetValue((value&0xF8)>>3);
                 pulse->envelope.start_flag = true;
+                pulse->sequence_index = 0;
                 break;
         }
     }
