@@ -4,6 +4,7 @@
 #include <iostream>
 #include <vector>
 #include <array>
+#include <cstdint>
 
 class Mapper {
     public:

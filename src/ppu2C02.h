@@ -59,15 +59,15 @@ class PPU2C02state {
         uint16_t x = 0;
         uint16_t y = 0;
 
-        uint8_t ppuctrl;
-        uint8_t ppumask;
-        uint8_t ppustatus;
-        uint8_t oamaddr;
-        uint8_t oamdata;
-        uint8_t ppuscroll;
-        uint8_t ppuaddr;
-        uint8_t ppudata;
-        uint8_t oamdma;
+        uint8_t ppuctrl = 0;
+        uint8_t ppumask = 0;
+        uint8_t ppustatus = 0;
+        uint8_t oamaddr = 0;
+        uint8_t oamdata = 0;
+        uint8_t ppuscroll = 0;
+        uint8_t ppuaddr = 0;
+        uint8_t ppudata = 0;
+        uint8_t oamdma = 0;
 
         //initalize the PPU (ppu2C02.c)
         PPU2C02state(SDL_Surface *screenSurface);
@@ -111,38 +111,38 @@ class PPU2C02state {
         void writeSPRRAM(uint8_t address, uint8_t value);
         uint8_t readSPRRAM(uint8_t address);
 
-        uint8_t odd_frame;
-        uint16_t scanline;
-        uint16_t dot;
+        uint8_t odd_frame = 0;
+        uint16_t scanline = 0;
+        uint16_t dot = 0;
 
-        uint8_t nmi_occurred;
+        uint8_t nmi_occurred = 0;
 
         //PPU register values
-        uint8_t nmi_output;
-        uint8_t sprite_zero_hit;
+        uint8_t nmi_output = 0;
+        uint8_t sprite_zero_hit = 0;
 
         //more accurate ppu
-        uint16_t nametable_base;
+        uint16_t nametable_base = 0;
 
-        uint16_t bitmap_shift_0_latch;
-        uint16_t bitmap_shift_1_latch;
+        uint16_t bitmap_shift_0_latch = 0;
+        uint16_t bitmap_shift_1_latch = 0;
 
-        uint16_t bitmap_shift_0;
-        uint16_t bitmap_shift_1;
+        uint16_t bitmap_shift_0 = 0;
+        uint16_t bitmap_shift_1 = 0;
 
 
-        uint16_t AT_shift_0_latch;
-        uint16_t AT_shift_1_latch;
-        uint16_t AT_shift_0;
-        uint16_t AT_shift_1;
+        uint16_t AT_shift_0_latch = 0;
+        uint16_t AT_shift_1_latch = 0;
+        uint16_t AT_shift_0 = 0;
+        uint16_t AT_shift_1 = 0;
 
-        uint8_t num_sprites;
+        uint8_t num_sprites = 0;
         PPUsprite sprites[8];
 
         uint GetCurrentFrame() { return current_frame; }
     
     private:
-        uint current_frame=0;
+        uint current_frame = 0;
 
 };
 
